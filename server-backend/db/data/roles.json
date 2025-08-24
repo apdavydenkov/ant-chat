@@ -1,0 +1,51 @@
+[
+  {
+    "id": "admin-role",
+    "name": "admin",
+    "permissions": [
+      "pin_messages",
+      "delete_messages",
+      "create_channels",
+      "delete_channels",
+      "pin_channels",
+      "block_users",
+      "send_messages",
+      "account_access"
+    ],
+    "createdAt": "2025-08-23T17:39:52.010Z"
+  },
+  {
+    "id": "user-role",
+    "name": "user",
+    "permissions": [
+      "send_messages",
+      "account_access"
+    ],
+    "createdAt": "2025-08-23T17:39:52.010Z"
+  },
+  {
+    "id": "moder-role",
+    "name": "moder",
+    "permissions": [
+      "pin_messages",
+      "delete_messages",
+      "send_messages",
+      "account_access"
+    ],
+    "createdAt": "2025-08-23T17:39:52.010Z"
+  },
+  {
+    "id": "readonly-role",
+    "name": "readonly",
+    "permissions": [
+      "account_access"
+    ],
+    "createdAt": "2025-08-23T17:39:52.010Z"
+  },
+  {
+    "id": "blocked-role",
+    "name": "blocked",
+    "permissions": [],
+    "createdAt": "2025-08-23T17:39:52.010Z"
+  }
+]

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "90324b39-2999-47a9-8fe8-053330a4d1c3",
+    "name": "Test",
+    "isPinned": true,
+    "createdBy": "998686cb-69de-468b-a353-99ffdb4fd80e",
+    "createdAt": "2025-08-23T19:00:26.698Z",
+    "isReadOnly": false
+  },
+  {
+    "id": "e7c32a96-3431-4ca1-82c6-ef64934946d4",
+    "name": "Claude Code Instructions",
+    "isPinned": true,
+    "createdBy": "998686cb-69de-468b-a353-99ffdb4fd80e",
+    "createdAt": "2025-08-23T21:14:05.721Z"
+  }
+]

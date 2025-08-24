@@ -1,0 +1,27 @@
+{
+  "name": "ant-chat-server",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "npx tsx watch index.ts",
+    "build": "npx tsc --project tsconfig.json",
+    "start": "npm run build && node dist/index.js"
+  },
+  "dependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.21",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^24.3.0",
+    "@types/uuid": "^10.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "fs-extra": "^11.3.1",
+    "socket.io": "^4.7.5",
+    "tsx": "^4.20.4",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}
