@@ -18,7 +18,7 @@ router.get('/', requireAuth, requirePermission('view_roles'), async (req, res) =
 // Create new permission
 router.post('/', requireAuth, requirePermission('manage_permissions'), async (req, res) => {
   try {
-    const { name, description, category, is_basic } = req.body;
+    const { name, description, category, isBasic } = req.body;
     
     if (!name || !description || !category) {
       return res.status(400).json({ error: 'Name, description, and category are required' });
@@ -36,7 +36,7 @@ router.post('/', requireAuth, requirePermission('manage_permissions'), async (re
       return res.status(400).json({ error: 'Invalid category' });
     }
 
-    const permission = await db.createPermission({ name, description, category, is_basic });
+    const permission = await db.createPermission({ name, description, category, isBasic });
     res.json({ permission });
   } catch (error) {
     console.error('Create permission error:', error);
@@ -47,7 +47,7 @@ router.post('/', requireAuth, requirePermission('manage_permissions'), async (re
 // Update permission
 router.put('/:id', requireAuth, requirePermission('manage_permissions'), async (req, res) => {
   try {
-    const { name, description, category, is_basic } = req.body;
+    const { name, description, category, isBasic } = req.body;
     
     // Validate category if provided
     if (category) {
@@ -65,7 +65,7 @@ router.put('/:id', requireAuth, requirePermission('manage_permissions'), async (
       }
     }
 
-    const permission = await db.updatePermission(req.params.id, { name, description, category, is_basic });
+    const permission = await db.updatePermission(req.params.id, { name, description, category, isBasic });
     
     if (!permission) {
       return res.status(404).json({ error: 'Permission not found' });

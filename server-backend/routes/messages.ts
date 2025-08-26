@@ -7,6 +7,12 @@ const router = Router();
 // Get messages by channel
 router.get('/channel/:channelId', async (req, res) => {
   try {
+    // Check if channel exists
+    const channel = await db.getChannelById(req.params.channelId);
+    if (!channel) {
+      return res.status(404).json({ error: 'Channel not found' });
+    }
+    
     const messages = await db.getMessagesByChannelId(req.params.channelId);
     res.json({ messages });
   } catch (error) {
@@ -63,8 +69,7 @@ router.post('/', requireAuth, async (req, res) => {
 
     const message = await db.createMessage({ 
       channelId, 
-      userId: req.userId!, 
-      username: req.user!.username, 
+      createdBy: req.userId!, 
       content 
     });
     res.json({ message });
@@ -103,7 +108,7 @@ router.put('/:id', requireAuth, async (req, res) => {
         return res.status(404).json({ error: 'Message not found' });
       }
       
-      const isOwner = existingMessage.userId === req.userId;
+      const isOwner = existingMessage.createdBy === req.userId;
       const hasEditSelf = await db.hasPermission(req.userId!, 'edit_messages_self');
       const hasEditAll = await db.hasPermission(req.userId!, 'edit_messages_all');
       
@@ -136,7 +141,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Message not found' });
     }
     
-    const isOwner = existingMessage.userId === req.userId;
+    const isOwner = existingMessage.createdBy === req.userId;
     const hasDeleteSelf = await db.hasPermission(req.userId!, 'delete_messages_self');
     const hasDeleteAll = await db.hasPermission(req.userId!, 'delete_messages_all');
     

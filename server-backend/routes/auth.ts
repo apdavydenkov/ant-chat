@@ -86,7 +86,7 @@ router.get('/users', requireAuth, requirePermission('view_users_all'), async (re
 // Create user
 router.post('/users', requireAuth, requirePermission('create_users'), async (req, res) => {
   try {
-    const { username, role, bio, email } = req.body;
+    const { username, role, bio } = req.body;
     
     if (!username || typeof username !== 'string' || username.length < 1 || username.length > 50) {
       return res.status(400).json({ error: 'Username must be a string between 1 and 50 characters' });
@@ -103,7 +103,7 @@ router.post('/users', requireAuth, requirePermission('create_users'), async (req
       return res.status(409).json({ error: 'Username already exists' });
     }
 
-    const user = await db.createUser({ username, role, bio, email });
+    const user = await db.createUser({ username, role, bio });
     res.json({ user });
   } catch (error) {
     console.error('Create user error:', error);
@@ -114,7 +114,7 @@ router.post('/users', requireAuth, requirePermission('create_users'), async (req
 // Update user profile
 router.put('/user/:id', requireAuth, async (req, res) => {
   try {
-    const { bio, email, avatar, isBlocked, role } = req.body;
+    const { bio, avatar } = req.body;
     const targetUserId = req.params.id;
     
     // Only allow users to edit their own profile, or users with edit_users_all permission to edit any profile
@@ -136,12 +136,6 @@ router.put('/user/:id', requireAuth, async (req, res) => {
       updateData.bio = bio.replace(/<[^>]*>/g, '').replace(/[<>'"&]/g, '');
     }
     
-    if (email !== undefined) {
-      if (typeof email !== 'string' || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
-        return res.status(400).json({ error: 'Email must be a valid email address' });
-      }
-      updateData.email = email;
-    }
     
     if (avatar !== undefined) {
       if (typeof avatar !== 'string' || avatar.length > 200) {
@@ -150,20 +144,6 @@ router.put('/user/:id', requireAuth, async (req, res) => {
       updateData.avatar = avatar;
     }
     
-    // Only users with change_roles permission can change roles
-    if (role !== undefined) {
-      const canChangeRoles = await db.hasPermission(req.userId!, 'change_roles');
-      if (!canChangeRoles) {
-        return res.status(403).json({ error: 'Permission to change roles required' });
-      }
-      
-      // Validate that role exists in the system
-      const existingRole = await db.getRoleByName(role);
-      if (!existingRole) {
-        return res.status(400).json({ error: 'Invalid role specified' });
-      }
-      updateData.role = role;
-    }
     
     const user = await db.updateUser(targetUserId, updateData);
     if (!user) {
@@ -172,6 +152,41 @@ router.put('/user/:id', requireAuth, async (req, res) => {
     res.json({ user });
   } catch (error) {
     console.error('Update user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update user role (separate endpoint for role changes)
+router.put('/user/:id/role', requireAuth, requirePermission('change_roles'), async (req, res) => {
+  try {
+    const { role } = req.body;
+    const targetUserId = req.params.id;
+    
+    if (!role || typeof role !== 'string') {
+      return res.status(400).json({ error: 'Role is required and must be a string' });
+    }
+    
+    // Validate that role exists in the system
+    const existingRole = await db.getRoleByName(role);
+    if (!existingRole) {
+      return res.status(400).json({ error: 'Invalid role specified' });
+    }
+    
+    // Get target user to check if they exist and aren't admin
+    const targetUser = await db.getUserById(targetUserId);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Protect admin users from role changes
+    if (targetUser.role === 'admin') {
+      return res.status(403).json({ error: 'Cannot change role of admin users' });
+    }
+    
+    const user = await db.updateUser(targetUserId, { role });
+    res.json({ user });
+  } catch (error) {
+    console.error('Update user role error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

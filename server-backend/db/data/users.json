@@ -1,11 +1,18 @@
 [
   {
-    "id": "admin-user-id",
+    "id": "e3d50477-8686-47f1-b120-d204dbca23d3",
     "username": "admin",
     "role": "admin",
     "bio": "Главный администратор системы",
-    "email": "admin@system.local",
-    "joinedAt": "2025-08-25T23:00:00.000Z",
-    "lastActive": "2025-08-25T23:00:00.000Z"
+    "joinedAt": "2025-08-26T13:17:40.506Z",
+    "lastActive": "2025-08-26T14:31:51.777Z"
+  },
+  {
+    "id": "e43fd2c0-293b-4493-b057-ac7bca6b65d1",
+    "username": "user",
+    "role": "user",
+    "bio": "",
+    "joinedAt": "2025-08-26T13:17:40.506Z",
+    "lastActive": "2025-08-26T13:17:40.506Z"
   }
 ]

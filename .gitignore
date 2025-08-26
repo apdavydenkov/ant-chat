@@ -16,9 +16,6 @@ dist-ssr
 *test*.json
 *log*.json
 
-# Python scripts
-*.py
-
 # Dist folders
 server-backend/dist/
 

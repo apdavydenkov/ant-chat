@@ -12,8 +12,8 @@ export interface Permission {
   name: string;
   description: string;
   category: 'system' | 'messages' | 'channels' | 'users' | 'roles' | 'admin';
-  is_basic: boolean;
-  created_at: Date;
+  isBasic: boolean;
+  createdAt: Date;
 }
 
 export interface Role {
@@ -21,17 +21,16 @@ export interface Role {
   name: string;
   description: string;
   type: 'default' | 'custom';
-  permissions: string[]; // Permission IDs
-  created_at: Date;
+  permissions: string[];
+  createdAt: Date;
 }
 
 export interface User {
   id: string;
   username: string;
   role: string;
-  avatar?: string;
   bio?: string;
-  email?: string;
+  avatar?: string;
   joinedAt: Date;
   lastActive: Date;
 }
@@ -39,21 +38,20 @@ export interface User {
 export interface Channel {
   id: string;
   name: string;
+  description?: string;
+  isReadOnly?: boolean;
   isPinned: boolean;
   createdBy: string;
   createdAt: Date;
-  description?: string;
-  isReadOnly?: boolean;
 }
 
 export interface Message {
   id: string;
   channelId: string;
-  userId: string;
-  username: string;
   content: string;
-  timestamp: Date;
   isPinned: boolean;
+  createdBy: string;
+  createdAt: Date;
   editedAt?: Date;
 }
 
@@ -72,114 +70,10 @@ class MockDB {
     this.messagesFile = path.join(this.dbPath, 'messages.json');
     this.rolesFile = path.join(this.dbPath, 'roles.json');
     this.permissionsFile = path.join(this.dbPath, 'permissions.json');
-    // Init will be called lazily when needed
   }
 
-  private async init() {
+  private async ensureInit() {
     await fsExtra.ensureDir(this.dbPath);
-    
-    // Initialize with default data if files don't exist
-    if (!await fsExtra.pathExists(this.usersFile)) {
-      await this.writeData(this.usersFile, []);
-    }
-
-    if (!await fsExtra.pathExists(this.permissionsFile)) {
-      await this.initializePermissions();
-    }
-
-    if (!await fsExtra.pathExists(this.rolesFile)) {
-      await this.initializeRoles();
-    }
-    
-    if (!await fsExtra.pathExists(this.channelsFile)) {
-      // Start with empty channels - users/admins will create them
-      await this.writeData(this.channelsFile, []);
-    }
-    
-    if (!await fsExtra.pathExists(this.messagesFile)) {
-      // Start with empty messages - users will create them
-      await this.writeData(this.messagesFile, []);
-    }
-  }
-
-  private async initializePermissions() {
-    const permissions: Permission[] = [
-      // SYSTEM
-      { id: '1', name: 'account_access', description: 'Базовый доступ к системе', category: 'system', is_basic: true, created_at: new Date() },
-      
-      // MESSAGES
-      { id: '2', name: 'send_messages', description: 'Отправка сообщений в чаты', category: 'messages', is_basic: true, created_at: new Date() },
-      { id: '3', name: 'edit_messages_self', description: 'Редактирование своих сообщений', category: 'messages', is_basic: true, created_at: new Date() },
-      { id: '4', name: 'edit_messages_all', description: 'Редактирование любых сообщений', category: 'messages', is_basic: false, created_at: new Date() },
-      { id: '5', name: 'delete_messages_self', description: 'Удаление своих сообщений', category: 'messages', is_basic: true, created_at: new Date() },
-      { id: '6', name: 'delete_messages_all', description: 'Удаление любых сообщений', category: 'messages', is_basic: false, created_at: new Date() },
-      { id: '7', name: 'pin_messages', description: 'Закрепление/открепление сообщений', category: 'messages', is_basic: false, created_at: new Date() },
-      
-      // CHANNELS
-      { id: '8', name: 'view_channels', description: 'Просмотр списка каналов', category: 'channels', is_basic: true, created_at: new Date() },
-      { id: '9', name: 'create_channels', description: 'Создание новых каналов', category: 'channels', is_basic: false, created_at: new Date() },
-      { id: '10', name: 'edit_channels_self', description: 'Редактирование созданных собой каналов', category: 'channels', is_basic: false, created_at: new Date() },
-      { id: '11', name: 'edit_channels_all', description: 'Редактирование любых каналов', category: 'channels', is_basic: false, created_at: new Date() },
-      { id: '12', name: 'delete_channels_self', description: 'Удаление созданных собой каналов', category: 'channels', is_basic: false, created_at: new Date() },
-      { id: '13', name: 'delete_channels_all', description: 'Удаление любых каналов', category: 'channels', is_basic: false, created_at: new Date() },
-      { id: '14', name: 'pin_channels', description: 'Закрепление/открепление каналов', category: 'channels', is_basic: false, created_at: new Date() },
-      { id: '15', name: 'close_channels_self', description: 'Установка режима \"только чтение\" для созданных собой каналов', category: 'channels', is_basic: false, created_at: new Date() },
-      { id: '16', name: 'close_channels_all', description: 'Установка режима \"только чтение\" для любых каналов', category: 'channels', is_basic: false, created_at: new Date() },
-      
-      // USERS
-      { id: '17', name: 'view_users_self', description: 'Просмотр своего профиля', category: 'users', is_basic: true, created_at: new Date() },
-      { id: '18', name: 'view_users_all', description: 'Просмотр профилей всех пользователей', category: 'users', is_basic: false, created_at: new Date() },
-      { id: '19', name: 'edit_users_self', description: 'Редактирование своего профиля, НЕ включая роль', category: 'users', is_basic: true, created_at: new Date() },
-      { id: '20', name: 'edit_users_all', description: 'Редактирование профилей всех пользователей, НЕ включая роль', category: 'users', is_basic: false, created_at: new Date() },
-      { id: '21', name: 'create_users', description: 'Создание новых пользователей', category: 'users', is_basic: false, created_at: new Date() },
-      { id: '22', name: 'delete_users', description: 'Удаление пользователей', category: 'users', is_basic: false, created_at: new Date() },
-      
-      // ROLES
-      { id: '23', name: 'change_roles', description: 'Изменение ролей пользователей', category: 'roles', is_basic: false, created_at: new Date() },
-      { id: '24', name: 'view_roles', description: 'Просмотр списка ролей', category: 'roles', is_basic: false, created_at: new Date() },
-      { id: '25', name: 'create_roles', description: 'Создание новых ролей', category: 'roles', is_basic: false, created_at: new Date() },
-      { id: '26', name: 'edit_roles', description: 'Редактирование ролей', category: 'roles', is_basic: false, created_at: new Date() },
-      { id: '27', name: 'delete_roles', description: 'Удаление ролей', category: 'roles', is_basic: false, created_at: new Date() },
-      { id: '28', name: 'manage_permissions', description: 'Управление разрешениями ролей', category: 'roles', is_basic: false, created_at: new Date() },
-      
-      // ADMIN
-      { id: '29', name: 'admin_panel_access', description: 'Доступ к административной панели', category: 'admin', is_basic: false, created_at: new Date() }
-    ];
-    await this.writeData(this.permissionsFile, permissions);
-  }
-
-  private async initializeRoles() {
-    const permissions = await this.getAllPermissions();
-    const basicPermissions = permissions.filter(p => p.is_basic).map(p => p.id);
-    const allPermissions = permissions.map(p => p.id);
-
-    const roles: Role[] = [
-      {
-        id: 'admin-role',
-        name: 'admin',
-        description: 'Суперадминистратор с полными правами',
-        type: 'default',
-        permissions: allPermissions,
-        created_at: new Date()
-      },
-      {
-        id: 'user-role',
-        name: 'user',
-        description: 'Стандартные пользователи',
-        type: 'default',
-        permissions: basicPermissions,
-        created_at: new Date()
-      },
-      {
-        id: 'blocked-role',
-        name: 'blocked',
-        description: 'Заблокированные пользователи',
-        type: 'default',
-        permissions: [], // No permissions = blocked
-        created_at: new Date()
-      }
-    ];
-    await this.writeData(this.rolesFile, roles);
   }
 
   private async readData<T>(filePath: string): Promise<T[]> {
@@ -193,12 +87,6 @@ class MockDB {
 
   private async writeData<T>(filePath: string, data: T[]): Promise<void> {
     await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
-  }
-
-  private async ensureInit() {
-    if (!await fsExtra.pathExists(this.dbPath)) {
-      await this.init();
-    }
   }
 
   // Users
@@ -231,7 +119,6 @@ class MockDB {
       username: userData.username!,
       role: userData.role || 'user',
       bio: userData.bio ?? '',
-      email: userData.email ?? '',
       joinedAt: new Date(),
       lastActive: new Date(),
       ...userData
@@ -257,8 +144,18 @@ class MockDB {
     return users[userIndex];
   }
 
+  async deleteUser(id: string): Promise<boolean> {
+    const users = await this.getAllUsers();
+    const filteredUsers = users.filter(user => user.id !== id);
+    if (filteredUsers.length === users.length) return false;
+    
+    await this.writeData(this.usersFile, filteredUsers);
+    return true;
+  }
+
   // Channels
   async getAllChannels(): Promise<Channel[]> {
+    await this.ensureInit();
     return await this.readData<Channel>(this.channelsFile);
   }
 
@@ -311,6 +208,7 @@ class MockDB {
 
   // Messages
   async getAllMessages(): Promise<Message[]> {
+    await this.ensureInit();
     return await this.readData<Message>(this.messagesFile);
   }
 
@@ -324,10 +222,9 @@ class MockDB {
     const newMessage: Message = {
       id: uuidv4(),
       channelId: messageData.channelId!,
-      userId: messageData.userId!,
-      username: messageData.username!,
+      createdBy: messageData.createdBy!,
       content: messageData.content!,
-      timestamp: new Date(),
+      createdAt: new Date(),
       isPinned: false,
       ...messageData
     };
@@ -355,17 +252,9 @@ class MockDB {
     return true;
   }
 
-  async deleteUser(id: string): Promise<boolean> {
-    const users = await this.getAllUsers();
-    const filteredUsers = users.filter(user => user.id !== id);
-    if (filteredUsers.length === users.length) return false;
-    
-    await this.writeData(this.usersFile, filteredUsers);
-    return true;
-  }
-
   // Permissions
   async getAllPermissions(): Promise<Permission[]> {
+    await this.ensureInit();
     return await this.readData<Permission>(this.permissionsFile);
   }
 
@@ -379,22 +268,22 @@ class MockDB {
     return permissions.find(perm => perm.name === name) || null;
   }
 
-  async createPermission(permData: { name: string; description: string; category: Permission['category']; is_basic?: boolean }): Promise<Permission> {
+  async createPermission(permData: { name: string; description: string; category: Permission['category']; isBasic?: boolean }): Promise<Permission> {
     const permissions = await this.getAllPermissions();
     const newPermission: Permission = {
       id: uuidv4(),
       name: permData.name,
       description: permData.description,
       category: permData.category,
-      is_basic: permData.is_basic ?? false,
-      created_at: new Date()
+      isBasic: permData.isBasic ?? false,
+      createdAt: new Date()
     };
     permissions.push(newPermission);
     await this.writeData(this.permissionsFile, permissions);
     return newPermission;
   }
 
-  async updatePermission(id: string, updates: { name?: string; description?: string; category?: Permission['category']; is_basic?: boolean }): Promise<Permission | null> {
+  async updatePermission(id: string, updates: { name?: string; description?: string; category?: Permission['category']; isBasic?: boolean }): Promise<Permission | null> {
     const permissions = await this.getAllPermissions();
     const permIndex = permissions.findIndex(perm => perm.id === id);
     if (permIndex === -1) return null;
@@ -415,6 +304,7 @@ class MockDB {
 
   // Roles
   async getAllRoles(): Promise<Role[]> {
+    await this.ensureInit();
     return await this.readData<Role>(this.rolesFile);
   }
 
@@ -435,7 +325,7 @@ class MockDB {
     let permissions = roleData.permissions || [];
     if (!roleData.permissions) {
       const allPermissions = await this.getAllPermissions();
-      permissions = allPermissions.filter(p => p.is_basic).map(p => p.id);
+      permissions = allPermissions.filter(p => p.isBasic).map(p => p.id);
     }
     
     const newRole: Role = {
@@ -444,7 +334,7 @@ class MockDB {
       description: roleData.description || '',
       type: roleData.type || 'custom',
       permissions,
-      created_at: new Date()
+      createdAt: new Date()
     };
     roles.push(newRole);
     await this.writeData(this.rolesFile, roles);

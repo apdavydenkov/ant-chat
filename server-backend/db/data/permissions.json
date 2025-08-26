@@ -4,231 +4,223 @@
     "name": "account_access",
     "description": "Базовый доступ к системе",
     "category": "system",
-    "is_basic": true,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": true,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "2",
     "name": "send_messages",
     "description": "Отправка сообщений в чаты",
     "category": "messages",
-    "is_basic": true,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": true,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "3",
     "name": "edit_messages_self",
     "description": "Редактирование своих сообщений",
     "category": "messages",
-    "is_basic": true,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": true,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "4",
     "name": "edit_messages_all",
     "description": "Редактирование любых сообщений",
     "category": "messages",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "5",
     "name": "delete_messages_self",
     "description": "Удаление своих сообщений",
     "category": "messages",
-    "is_basic": true,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": true,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "6",
     "name": "delete_messages_all",
     "description": "Удаление любых сообщений",
     "category": "messages",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "7",
     "name": "pin_messages",
     "description": "Закрепление/открепление сообщений",
     "category": "messages",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "8",
-    "name": "view_channels",
-    "description": "Просмотр списка каналов",
-    "category": "channels",
-    "is_basic": true,
-    "created_at": "2025-08-25T23:00:00.000Z"
-  },
-  {
-    "id": "9",
     "name": "create_channels",
     "description": "Создание новых каналов",
     "category": "channels",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "10",
     "name": "edit_channels_self",
     "description": "Редактирование созданных собой каналов",
     "category": "channels",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "11",
     "name": "edit_channels_all",
     "description": "Редактирование любых каналов",
     "category": "channels",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "12",
     "name": "delete_channels_self",
     "description": "Удаление созданных собой каналов",
     "category": "channels",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "13",
     "name": "delete_channels_all",
     "description": "Удаление любых каналов",
     "category": "channels",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "14",
     "name": "pin_channels",
     "description": "Закрепление/открепление каналов",
     "category": "channels",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "15",
     "name": "close_channels_self",
     "description": "Установка режима \"только чтение\" для созданных собой каналов",
     "category": "channels",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "16",
     "name": "close_channels_all",
     "description": "Установка режима \"только чтение\" для любых каналов",
     "category": "channels",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "17",
     "name": "view_users_self",
     "description": "Просмотр своего профиля",
     "category": "users",
-    "is_basic": true,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": true,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "18",
     "name": "view_users_all",
     "description": "Просмотр профилей всех пользователей",
     "category": "users",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "19",
     "name": "edit_users_self",
     "description": "Редактирование своего профиля, НЕ включая роль",
     "category": "users",
-    "is_basic": true,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": true,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "20",
     "name": "edit_users_all",
     "description": "Редактирование профилей всех пользователей, НЕ включая роль",
     "category": "users",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "21",
     "name": "create_users",
     "description": "Создание новых пользователей",
     "category": "users",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "22",
     "name": "delete_users",
     "description": "Удаление пользователей",
     "category": "users",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "23",
     "name": "change_roles",
     "description": "Изменение ролей пользователей",
     "category": "roles",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "24",
     "name": "view_roles",
     "description": "Просмотр списка ролей",
     "category": "roles",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "25",
     "name": "create_roles",
     "description": "Создание новых ролей",
     "category": "roles",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "26",
     "name": "edit_roles",
     "description": "Редактирование ролей",
     "category": "roles",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "27",
     "name": "delete_roles",
     "description": "Удаление ролей",
     "category": "roles",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "28",
     "name": "manage_permissions",
     "description": "Управление разрешениями ролей",
     "category": "roles",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   },
   {
     "id": "29",
     "name": "admin_panel_access",
     "description": "Доступ к административной панели",
     "category": "admin",
-    "is_basic": false,
-    "created_at": "2025-08-25T23:00:00.000Z"
+    "isBasic": false,
+    "createdAt": "2025-08-26T13:17:40.501Z"
   }
 ]
