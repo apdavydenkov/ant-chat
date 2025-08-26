@@ -34,6 +34,9 @@ app.use(express.static(path.join(__dirname, '../dist')));
 // Rate limiting
 app.use(createRateLimit(60000, 100)); // 100 requests per minute per IP
 
+// Serve DB files statically for client tester
+app.use('/db', express.static(path.join(__dirname, 'db')));
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/channels', channelRoutes);

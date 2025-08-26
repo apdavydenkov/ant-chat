@@ -41,6 +41,23 @@ router.put('/:id', requireAuth, async (req, res) => {
   try {
     const { name, isPinned, description, isReadOnly } = req.body;
     
+    // Get channel info to check ownership
+    const channel = await db.getChannelById(req.params.id);
+    if (!channel) {
+      return res.status(404).json({ error: 'Channel not found' });
+    }
+    
+    // Check permissions for basic editing
+    if (name !== undefined || description !== undefined) {
+      const isOwner = channel.createdBy === req.userId;
+      const hasEditSelf = await db.hasPermission(req.userId!, 'edit_channels_self');
+      const hasEditAll = await db.hasPermission(req.userId!, 'edit_channels_all');
+      
+      if (!hasEditAll && !(isOwner && hasEditSelf)) {
+        return res.status(403).json({ error: 'Permission to edit channels required' });
+      }
+    }
+    
     // Check permissions for pinning
     if (isPinned !== undefined) {
       const hasPermission = await db.hasPermission(req.userId!, 'pin_channels');
@@ -49,13 +66,19 @@ router.put('/:id', requireAuth, async (req, res) => {
       }
     }
     
-    const channel = await db.updateChannel(req.params.id, { name, isPinned, description, isReadOnly });
-    
-    if (!channel) {
-      return res.status(404).json({ error: 'Channel not found' });
+    // Check permissions for read-only mode
+    if (isReadOnly !== undefined) {
+      const isOwner = channel.createdBy === req.userId;
+      const hasCloseSelf = await db.hasPermission(req.userId!, 'close_channels_self');
+      const hasCloseAll = await db.hasPermission(req.userId!, 'close_channels_all');
+      
+      if (!hasCloseAll && !(isOwner && hasCloseSelf)) {
+        return res.status(403).json({ error: 'Permission to set channel read-only required' });
+      }
     }
-
-    res.json({ channel });
+    
+    const updatedChannel = await db.updateChannel(req.params.id, { name, isPinned, description, isReadOnly });
+    res.json({ channel: updatedChannel });
   } catch (error) {
     console.error('Update channel error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -63,14 +86,24 @@ router.put('/:id', requireAuth, async (req, res) => {
 });
 
 // Delete channel
-router.delete('/:id', requireAuth, requirePermission('delete_channels'), async (req, res) => {
+router.delete('/:id', requireAuth, async (req, res) => {
   try {
-    const success = await db.deleteChannel(req.params.id);
-    
-    if (!success) {
+    // Get channel info to check ownership
+    const channel = await db.getChannelById(req.params.id);
+    if (!channel) {
       return res.status(404).json({ error: 'Channel not found' });
     }
-
+    
+    // Check permissions
+    const isOwner = channel.createdBy === req.userId;
+    const hasDeleteSelf = await db.hasPermission(req.userId!, 'delete_channels_self');
+    const hasDeleteAll = await db.hasPermission(req.userId!, 'delete_channels_all');
+    
+    if (!hasDeleteAll && !(isOwner && hasDeleteSelf)) {
+      return res.status(403).json({ error: 'Permission to delete channels required' });
+    }
+    
+    const success = await db.deleteChannel(req.params.id);
     res.json({ success: true });
   } catch (error) {
     console.error('Delete channel error:', error);

@@ -1,88 +1,11 @@
 [
   {
-    "id": "998686cb-69de-468b-a353-99ffdb4fd80e",
+    "id": "admin-user-id",
     "username": "admin",
     "role": "admin",
-    "bio": "Привет. Как дела? Ты кто",
-    "email": "",
-    "joinedAt": "2025-08-23T07:55:44.002Z",
-    "lastActive": "2025-08-24T08:33:09.772Z"
-  },
-  {
-    "id": "27597aa3-391f-4c77-af25-d7c1727c83f0",
-    "username": "543",
-    "role": "moder",
-    "bio": "",
-    "email": "",
-    "joinedAt": "2025-08-23T10:45:01.600Z",
-    "lastActive": "2025-08-23T10:45:01.600Z"
-  },
-  {
-    "id": "d110ce3a-bbe5-47c5-8a58-472d854d81a7",
-    "username": "4321",
-    "role": "blocked",
-    "joinedAt": "2025-08-23T10:50:16.715Z",
-    "lastActive": "2025-08-23T18:36:51.133Z"
-  },
-  {
-    "id": "f14042ff-ac6d-4202-9b67-acd56753e273",
-    "username": "444",
-    "role": "moder",
-    "joinedAt": "2025-08-23T19:17:07.867Z",
-    "lastActive": "2025-08-24T08:32:05.788Z"
-  },
-  {
-    "id": "408fc1df-eb13-4b85-b5cf-662fb5b9e84c",
-    "username": "testuser_1755989577",
-    "role": "user",
-    "bio": "Test bio",
-    "email": "test@example.com",
-    "joinedAt": "2025-08-23T22:52:57.373Z",
-    "lastActive": "2025-08-23T22:52:57.388Z"
-  },
-  {
-    "id": "5791d8e2-b3b8-4bc8-9c47-05121ea4943f",
-    "username": "admin_1755989577",
-    "role": "user",
-    "bio": "",
-    "email": "",
-    "joinedAt": "2025-08-23T22:52:57.394Z",
-    "lastActive": "2025-08-23T22:52:57.394Z"
-  },
-  {
-    "id": "32c11864-22e8-4e35-970d-416eb97eeec2",
-    "username": "testuser_1755990121",
-    "role": "user",
-    "bio": "Test bio",
-    "email": "test@example.com",
-    "joinedAt": "2025-08-23T23:02:01.777Z",
-    "lastActive": "2025-08-23T23:02:01.793Z"
-  },
-  {
-    "id": "92841424-44cf-4577-af38-f8c0e72d4391",
-    "username": "testuser_1756017275",
-    "role": "user",
-    "bio": "Test bio",
-    "email": "test@example.com",
-    "joinedAt": "2025-08-24T06:34:35.797Z",
-    "lastActive": "2025-08-24T06:34:35.809Z"
-  },
-  {
-    "id": "53383bcd-a15d-41fb-a5f4-c418f57a3c47",
-    "username": "testuser_1756018053",
-    "role": "user",
-    "bio": "Test bio",
-    "email": "test@example.com",
-    "joinedAt": "2025-08-24T06:47:33.107Z",
-    "lastActive": "2025-08-24T06:47:33.127Z"
-  },
-  {
-    "id": "e5912c85-9c56-4c02-b05c-125674da09d1",
-    "username": "testuser_1756018156",
-    "role": "user",
-    "bio": "Test bio",
-    "email": "test@example.com",
-    "joinedAt": "2025-08-24T06:49:16.057Z",
-    "lastActive": "2025-08-24T06:49:16.070Z"
+    "bio": "Главный администратор системы",
+    "email": "admin@system.local",
+    "joinedAt": "2025-08-25T23:00:00.000Z",
+    "lastActive": "2025-08-25T23:00:00.000Z"
   }
 ]

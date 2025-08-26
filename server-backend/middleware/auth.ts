@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { db, Permission } from '../db/mockdb.js';
+import { db } from '../db/mockdb.js';
 
 declare global {
   namespace Express {
@@ -39,16 +39,16 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-export const requirePermission = (permission: Permission) => {
+export const requirePermission = (permissionName: string) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.userId) {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      const hasPermission = await db.hasPermission(req.userId, permission);
+      const hasPermission = await db.hasPermission(req.userId, permissionName);
       if (!hasPermission) {
-        return res.status(403).json({ error: `Permission '${permission}' required` });
+        return res.status(403).json({ error: `Permission '${permissionName}' required` });
       }
 
       next();
@@ -65,12 +65,10 @@ export const requireAdmin = async (req: Request, res: Response, next: NextFuncti
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Check for admin permissions rather than hardcoded role
-    const hasBlockUsersPermission = await db.hasPermission(req.userId, 'block_users');
-    const hasDeleteChannelsPermission = await db.hasPermission(req.userId, 'delete_channels');
+    // Check for admin panel access permission
+    const hasAdminAccess = await db.hasPermission(req.userId, 'admin_panel_access');
     
-    // User is admin if they have key admin permissions
-    if (!hasBlockUsersPermission || !hasDeleteChannelsPermission) {
+    if (!hasAdminAccess) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 

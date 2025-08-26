@@ -12,6 +12,16 @@ dist
 dist-ssr
 *.local
 
+# Test files
+*test*.json
+*log*.json
+
+# Python scripts
+*.py
+
+# Dist folders
+server-backend/dist/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

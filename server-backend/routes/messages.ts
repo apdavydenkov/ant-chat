@@ -15,8 +15,8 @@ router.get('/channel/:channelId', async (req, res) => {
   }
 });
 
-// Get all messages
-router.get('/', async (req, res) => {
+// Get all messages (admin function)
+router.get('/', requireAuth, requirePermission('view_users_all'), async (req, res) => {
   try {
     const messages = await db.getAllMessages();
     res.json({ messages });
@@ -94,7 +94,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       }
     }
     
-    // For content editing, check if user owns the message or has admin rights
+    // For content editing, check if user owns the message or has edit rights
     if (content !== undefined) {
       const existingMessage = await db.getAllMessages().then(messages => 
         messages.find(m => m.id === req.params.id)
@@ -103,9 +103,12 @@ router.put('/:id', requireAuth, async (req, res) => {
         return res.status(404).json({ error: 'Message not found' });
       }
       
-      const hasEditPermission = await db.hasPermission(req.userId!, 'delete_messages');
-      if (existingMessage.userId !== req.userId && !hasEditPermission) {
-        return res.status(403).json({ error: 'Can only edit your own messages' });
+      const isOwner = existingMessage.userId === req.userId;
+      const hasEditSelf = await db.hasPermission(req.userId!, 'edit_messages_self');
+      const hasEditAll = await db.hasPermission(req.userId!, 'edit_messages_all');
+      
+      if (!hasEditAll && !(isOwner && hasEditSelf)) {
+        return res.status(403).json({ error: 'Permission to edit messages required' });
       }
     }
     
@@ -133,11 +136,12 @@ router.delete('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Message not found' });
     }
     
-    const hasDeletePermission = await db.hasPermission(req.userId!, 'delete_messages');
     const isOwner = existingMessage.userId === req.userId;
+    const hasDeleteSelf = await db.hasPermission(req.userId!, 'delete_messages_self');
+    const hasDeleteAll = await db.hasPermission(req.userId!, 'delete_messages_all');
     
-    if (!hasDeletePermission && !isOwner) {
-      return res.status(403).json({ error: 'Permission denied' });
+    if (!hasDeleteAll && !(isOwner && hasDeleteSelf)) {
+      return res.status(403).json({ error: 'Permission to delete messages required' });
     }
     
     const success = await db.deleteMessage(req.params.id);

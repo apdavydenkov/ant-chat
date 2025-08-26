@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/mockdb.js';
-import { requireAuth, requirePermission, requireAdmin } from '../middleware/auth.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -43,8 +43,24 @@ router.post('/login', async (req, res) => {
 });
 
 // Get user profile
-router.get('/user/:id', async (req, res) => {
+router.get('/user/:id', requireAuth, async (req, res) => {
   try {
+    const targetUserId = req.params.id;
+    const currentUserId = req.userId!;
+    
+    // Check permissions: view_users_self for own profile OR view_users_all for others
+    if (targetUserId === currentUserId) {
+      const canViewSelf = await db.hasPermission(currentUserId, 'view_users_self');
+      if (!canViewSelf) {
+        return res.status(403).json({ error: 'Permission to view own profile required' });
+      }
+    } else {
+      const canViewAll = await db.hasPermission(currentUserId, 'view_users_all');
+      if (!canViewAll) {
+        return res.status(403).json({ error: 'Permission to view other users required' });
+      }
+    }
+    
     const user = await db.getUserById(req.params.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -56,8 +72,8 @@ router.get('/user/:id', async (req, res) => {
   }
 });
 
-// Get all users (admin only)
-router.get('/users', requireAuth, requireAdmin, async (req, res) => {
+// Get all users
+router.get('/users', requireAuth, requirePermission('view_users_all'), async (req, res) => {
   try {
     const users = await db.getAllUsers();
     res.json({ users });
@@ -67,8 +83,8 @@ router.get('/users', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// Create user (admin only)
-router.post('/users', requireAuth, requireAdmin, async (req, res) => {
+// Create user
+router.post('/users', requireAuth, requirePermission('create_users'), async (req, res) => {
   try {
     const { username, role, bio, email } = req.body;
     
@@ -101,10 +117,10 @@ router.put('/user/:id', requireAuth, async (req, res) => {
     const { bio, email, avatar, isBlocked, role } = req.body;
     const targetUserId = req.params.id;
     
-    // Only allow users to edit their own profile, or users with block_users permission to edit any profile
+    // Only allow users to edit their own profile, or users with edit_users_all permission to edit any profile
     if (req.userId !== targetUserId) {
-      const hasAdminPermission = await db.hasPermission(req.userId, 'block_users');
-      if (!hasAdminPermission) {
+      const hasEditAllPermission = await db.hasPermission(req.userId!, 'edit_users_all');
+      if (!hasEditAllPermission) {
         return res.status(403).json({ error: 'Access denied' });
       }
     }
@@ -134,17 +150,19 @@ router.put('/user/:id', requireAuth, async (req, res) => {
       updateData.avatar = avatar;
     }
     
-    // Only users with block_users permission can change roles
-    const canChangeRoles = await db.hasPermission(req.userId, 'block_users');
-    if (canChangeRoles) {
-      if (role !== undefined) {
-        // Validate that role exists in the system
-        const existingRole = await db.getRoleByName(role);
-        if (!existingRole) {
-          return res.status(400).json({ error: 'Invalid role specified' });
-        }
-        updateData.role = role;
+    // Only users with change_roles permission can change roles
+    if (role !== undefined) {
+      const canChangeRoles = await db.hasPermission(req.userId!, 'change_roles');
+      if (!canChangeRoles) {
+        return res.status(403).json({ error: 'Permission to change roles required' });
       }
+      
+      // Validate that role exists in the system
+      const existingRole = await db.getRoleByName(role);
+      if (!existingRole) {
+        return res.status(400).json({ error: 'Invalid role specified' });
+      }
+      updateData.role = role;
     }
     
     const user = await db.updateUser(targetUserId, updateData);
@@ -158,9 +176,20 @@ router.put('/user/:id', requireAuth, async (req, res) => {
   }
 });
 
-// Delete user (admin only)
-router.delete('/user/:id', requireAuth, requirePermission('block_users'), async (req, res) => {
+// Delete user
+router.delete('/user/:id', requireAuth, requirePermission('delete_users'), async (req, res) => {
   try {
+    // Check if target user exists and get their role
+    const targetUser = await db.getUserById(req.params.id);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Protect admin users from deletion
+    if (targetUser.role === 'admin') {
+      return res.status(403).json({ error: 'Cannot delete admin users' });
+    }
+    
     const success = await db.deleteUser(req.params.id);
     if (!success) {
       return res.status(404).json({ error: 'User not found' });

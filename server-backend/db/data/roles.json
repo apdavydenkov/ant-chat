@@ -2,50 +2,25 @@
   {
     "id": "admin-role",
     "name": "admin",
-    "permissions": [
-      "pin_messages",
-      "delete_messages",
-      "create_channels",
-      "delete_channels",
-      "pin_channels",
-      "block_users",
-      "send_messages",
-      "account_access"
-    ],
-    "createdAt": "2025-08-23T17:39:52.010Z"
+    "description": "Суперадминистратор с полными правами",
+    "type": "default",
+    "permissions": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29"],
+    "created_at": "2025-08-25T23:00:00.000Z"
   },
   {
     "id": "user-role",
     "name": "user",
-    "permissions": [
-      "send_messages",
-      "account_access"
-    ],
-    "createdAt": "2025-08-23T17:39:52.010Z"
-  },
-  {
-    "id": "moder-role",
-    "name": "moder",
-    "permissions": [
-      "pin_messages",
-      "delete_messages",
-      "send_messages",
-      "account_access"
-    ],
-    "createdAt": "2025-08-23T17:39:52.010Z"
-  },
-  {
-    "id": "readonly-role",
-    "name": "readonly",
-    "permissions": [
-      "account_access"
-    ],
-    "createdAt": "2025-08-23T17:39:52.010Z"
+    "description": "Стандартные пользователи",
+    "type": "default",
+    "permissions": ["1", "2", "3", "5", "8", "17", "19"],
+    "created_at": "2025-08-25T23:00:00.000Z"
   },
   {
     "id": "blocked-role",
     "name": "blocked",
+    "description": "Заблокированные пользователи",
+    "type": "default",
     "permissions": [],
-    "createdAt": "2025-08-23T17:39:52.010Z"
+    "created_at": "2025-08-25T23:00:00.000Z"
   }
 ]
