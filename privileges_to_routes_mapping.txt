@@ -1,0 +1,118 @@
+СОПОСТАВЛЕНИЕ ПРИВИЛЕГИЙ И РОУТОВ
+
+=== SYSTEM PRIVILEGES ===
+
+1. account_access - Базовый доступ к системе
+   - Используется: POST /api/auth/login (проверяется после входа, если нет - доступ запрещен)
+   - Используется: через middleware requireAuth во всех защищенных эндпоинтах
+   - Используется: GET /api/permissions/check
+
+=== MESSAGES PRIVILEGES ===
+
+2. send_messages - Отправка сообщений в чаты
+   - Используется: POST /api/messages/ (создание сообщения)
+
+3. edit_messages_self - Редактирование своих сообщений
+   - Используется: PUT /api/messages/:id (при редактировании content, если пользователь автор сообщения)
+
+4. edit_messages_all - Редактирование любых сообщений
+   - Используется: PUT /api/messages/:id (при редактировании content, переопределяет ограничения edit_messages_self)
+
+5. delete_messages_self - Удаление своих сообщений
+   - Используется: DELETE /api/messages/:id (если пользователь автор сообщения)
+
+6. delete_messages_all - Удаление любых сообщений
+   - Используется: DELETE /api/messages/:id (переопределяет ограничения delete_messages_self)
+
+7. pin_messages - Закрепление/открепление сообщений
+   - Используется: PUT /api/messages/:id (при изменении isPinned)
+
+=== CHANNELS PRIVILEGES ===
+
+8. create_channels - Создание новых каналов
+   - Используется: POST /api/channels/ (создание канала)
+
+10. edit_channels_self - Редактирование созданных собой каналов
+    - Используется: PUT /api/channels/:id (при изменении name или description, если пользователь создатель канала)
+
+11. edit_channels_all - Редактирование любых каналов
+    - Используется: PUT /api/channels/:id (при изменении name или description, переопределяет ограничения edit_channels_self)
+
+12. delete_channels_self - Удаление созданных собой каналов
+    - Используется: DELETE /api/channels/:id (если пользователь создатель канала)
+
+13. delete_channels_all - Удаление любых каналов
+    - Используется: DELETE /api/channels/:id (переопределяет ограничения delete_channels_self)
+
+14. pin_channels - Закрепление/открепление каналов
+    - Используется: PUT /api/channels/:id (при изменении isPinned)
+
+15. close_channels_self - Установка режима "только чтение" для созданных собой каналов
+    - Используется: PUT /api/channels/:id (при изменении isReadOnly, если пользователь создатель канала)
+
+16. close_channels_all - Установка режима "только чтение" для любых каналов
+    - Используется: PUT /api/channels/:id (при изменении isReadOnly, переопределяет ограничения close_channels_self)
+
+=== USERS PRIVILEGES ===
+
+17. view_users_self - Просмотр своего профиля
+    - Используется: GET /api/auth/user/:id (если запрашивается свой профиль)
+    - Используется: GET /api/roles/user/:userId/permissions (если запрашиваются свои разрешения)
+
+18. view_users_all - Просмотр профилей всех пользователей
+    - Используется: GET /api/auth/user/:id (если запрашивается чужой профиль)
+    - Используется: GET /api/auth/users (получение списка всех пользователей)
+    - Используется: GET /api/messages/ (административная функция получения всех сообщений)
+    - Используется: GET /api/roles/user/:userId/permissions (если запрашиваются чужие разрешения)
+
+19. edit_users_self - Редактирование своего профиля, НЕ включая роль
+    - Используется: PUT /api/auth/user/:id (автоматически разрешено для своего профиля)
+
+20. edit_users_all - Редактирование профилей всех пользователей, НЕ включая роль
+    - Используется: PUT /api/auth/user/:id (для редактирования чужих профилей)
+
+21. create_users - Создание новых пользователей
+    - Используется: POST /api/auth/users (создание пользователя)
+
+22. delete_users - Удаление пользователей
+    - Используется: DELETE /api/auth/user/:id (удаление пользователя)
+
+23. change_roles - Изменение ролей пользователей
+    - Используется: PUT /api/auth/user/:id/role (изменение роли пользователя)
+
+=== ROLES PRIVILEGES ===
+
+24. view_roles - Просмотр списка ролей
+    - Используется: GET /api/roles/ (получение всех ролей)
+    - Используется: GET /api/roles/:id (получение роли по ID)
+    - Используется: GET /api/permissions/ (получение всех разрешений)
+
+25. create_roles - Создание новых ролей
+    - Используется: POST /api/roles/ (создание роли)
+
+26. edit_roles - Редактирование ролей
+    - Используется: PUT /api/roles/:id (редактирование роли включая разрешения)
+
+27. delete_roles - Удаление ролей
+    - Используется: DELETE /api/roles/:id (удаление роли)
+
+28. manage_permissions - Управление разрешениями ролей
+    - Используется: POST /api/permissions/ (создание нового разрешения)
+    - Используется: PUT /api/permissions/:id (редактирование разрешения)
+    - Используется: DELETE /api/permissions/:id (удаление разрешения)
+
+=== ADMIN PRIVILEGES ===
+
+29. admin_panel_access - Доступ к административной панели
+    - НЕ ИСПОЛЬЗУЕТСЯ в текущих роутах бэкенда
+
+=== ПУБЛИЧНЫЕ ЭНДПОИНТЫ (без проверки разрешений) ===
+
+- POST /api/auth/login (публичный доступ для входа)
+- GET /api/channels/ (публичный доступ к списку каналов)
+- GET /api/messages/channel/:channelId (публичный доступ к сообщениям канала)
+
+=== ЗАЩИЩЕННЫЕ MIDDLEWARE ===
+
+- requireAuth: проверяет наличие account_access у пользователя
+- requirePermission(permission): проверяет конкретное разрешение

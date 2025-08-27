@@ -32,51 +32,78 @@ export const ViewProvider: React.FC<ViewProviderProps> = ({ children }) => {
     return (saved as ViewType) || 'channels';
   });
 
-  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
-  const [navigationHistory, setNavigationHistory] = useState<ViewType[]>(['channels']);
+  const [viewingUserId, setViewingUserId] = useState<string | null>(() => {
+    return localStorage.getItem('viewingUserId') || null;
+  });
+
+  // Простая история - только предыдущий экран
+  const [previousView, setPreviousView] = useState<ViewType>('channels');
+  const [previousViewingUserId, setPreviousViewingUserId] = useState<string | null>(null);
+
+  const saveToHistory = (view: ViewType, userId: string | null) => {
+    setPreviousView(currentView);
+    setPreviousViewingUserId(viewingUserId);
+  };
 
   const goToChat = () => {
-    setNavigationHistory(prev => [...prev, 'chat']);
+    saveToHistory('chat', null);
     setCurrentView('chat');
     localStorage.setItem('currentView', 'chat');
   };
   
   const goToChannels = () => {
-    setNavigationHistory(prev => [...prev, 'channels']);
+    saveToHistory('channels', null);
     setCurrentView('channels');
     localStorage.setItem('currentView', 'channels');
     setViewingUserId(null);
+    localStorage.removeItem('viewingUserId');
   };
   
   const goToProfile = (userId?: string) => {
-    setNavigationHistory(prev => [...prev, 'profile']);
+    // Не сохраняем в историю если переходим на тот же профиль
+    const targetUserId = userId || null;
+    if (!(currentView === 'profile' && viewingUserId === targetUserId)) {
+      saveToHistory('profile', targetUserId);
+    }
+    
     setCurrentView('profile');
     localStorage.setItem('currentView', 'profile');
-    setViewingUserId(userId || null);
+    setViewingUserId(targetUserId);
+    if (targetUserId) {
+      localStorage.setItem('viewingUserId', targetUserId);
+    } else {
+      localStorage.removeItem('viewingUserId');
+    }
   };
 
   const goToAdmin = () => {
-    setNavigationHistory(prev => [...prev, 'admin']);
+    saveToHistory('admin', null);
     setCurrentView('admin');
     localStorage.setItem('currentView', 'admin');
     setViewingUserId(null);
+    localStorage.removeItem('viewingUserId');
   };
 
   const goBack = () => {
-    if (navigationHistory.length > 1) {
-      const newHistory = [...navigationHistory];
-      newHistory.pop(); // Remove current view
-      const previousView = newHistory[newHistory.length - 1];
-      setNavigationHistory(newHistory);
-      setCurrentView(previousView);
-      localStorage.setItem('currentView', previousView);
-      if (previousView !== 'profile') {
-        setViewingUserId(null);
+    // Просто возвращаемся к предыдущему экрану
+    setCurrentView(previousView);
+    localStorage.setItem('currentView', previousView);
+    
+    if (previousView === 'profile') {
+      setViewingUserId(previousViewingUserId);
+      if (previousViewingUserId) {
+        localStorage.setItem('viewingUserId', previousViewingUserId);
+      } else {
+        localStorage.removeItem('viewingUserId');
       }
     } else {
-      // Fallback to channels if no history
-      goToChannels();
+      setViewingUserId(null);
+      localStorage.removeItem('viewingUserId');
     }
+    
+    // Сбрасываем историю
+    setPreviousView('channels');
+    setPreviousViewingUserId(null);
   };
 
   const value: ViewContextType = {

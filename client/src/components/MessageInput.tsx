@@ -55,7 +55,7 @@ const MessageInput: React.FC = () => {
 
   const handleSend = () => {
     if (message.trim() && activeChannelId && user && isAuthenticated) {
-      addMessage(activeChannelId, user.id, user.username, message.trim());
+      addMessage(activeChannelId, message.trim());
       setMessage('');
       // Удаляем черновик после отправки
       localStorage.removeItem(`draft_${activeChannelId}`);

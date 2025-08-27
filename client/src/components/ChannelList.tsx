@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { List, Button, Modal, Input, Typography, Space, Dropdown, type MenuProps, message, Tag } from 'antd';
-import { PlusOutlined, DeleteOutlined, PushpinOutlined, PushpinFilled, EditOutlined, LockOutlined, CloseOutlined } from '@ant-design/icons';
+import { List, Modal, Input, Typography, Dropdown, type MenuProps, message } from 'antd';
+import { DeleteOutlined, PushpinOutlined, PushpinFilled, EditOutlined, LockOutlined, CloseOutlined } from '@ant-design/icons';
 import { useChat } from '../contexts/ChatContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useView } from '../contexts/ViewContext';
@@ -30,7 +30,7 @@ const ChannelList: React.FC = () => {
       try {
         const [canPinChannels, canDeleteChannels, canCreateChannels] = await Promise.all([
           apiService.hasPermission('pin_channels'),
-          apiService.hasPermission('delete_channels'),
+          apiService.hasPermission('delete_channels_all'),
           apiService.hasPermission('create_channels')
         ]);
         
@@ -99,7 +99,7 @@ const ChannelList: React.FC = () => {
   const getLastMessage = (channelId: string) => {
     const channelMessages = messages
       .filter(msg => msg.channelId === channelId)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return channelMessages[0];
   };
 
@@ -220,7 +220,7 @@ const ChannelList: React.FC = () => {
                               lineHeight: 1.2
                             }}
                           >
-                            {lastMessage.username}: {lastMessage.content}
+                            {lastMessage.content}
                           </Text>
                         );
                       }
@@ -240,7 +240,7 @@ const ChannelList: React.FC = () => {
                               marginTop: channel.isPinned ? '2px' : '0'
                             }}
                           >
-                            {formatLastMessageTime(lastMessage.timestamp)}
+                            {formatLastMessageTime(lastMessage.createdAt)}
                           </Text>
                         );
                       }

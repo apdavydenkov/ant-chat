@@ -3,16 +3,24 @@
     "id": "e3d50477-8686-47f1-b120-d204dbca23d3",
     "username": "admin",
     "role": "admin",
-    "bio": "Главный администратор системы",
+    "bio": "Главный администратор системы!",
     "joinedAt": "2025-08-26T13:17:40.506Z",
-    "lastActive": "2025-08-26T14:31:51.777Z"
+    "lastActive": "2025-08-27T07:34:54.924Z"
   },
   {
     "id": "e43fd2c0-293b-4493-b057-ac7bca6b65d1",
+    "username": "Maxim",
+    "role": "user",
+    "bio": "Тест",
+    "joinedAt": "2025-08-26T13:17:40.506Z",
+    "lastActive": "2025-08-27T06:49:32.527Z"
+  },
+  {
+    "id": "381b7cc0-c8b1-413c-8ac9-77d6b6563cba",
     "username": "user",
     "role": "user",
     "bio": "",
-    "joinedAt": "2025-08-26T13:17:40.506Z",
-    "lastActive": "2025-08-26T13:17:40.506Z"
+    "joinedAt": "2025-08-27T07:34:00.059Z",
+    "lastActive": "2025-08-27T07:46:16.423Z"
   }
 ]

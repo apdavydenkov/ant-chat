@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout, Space, Button, Avatar, Dropdown, Typography, Modal, Input, Descriptions, Tag } from 'antd';
-import { UserOutlined, LogoutOutlined, CrownOutlined, ArrowLeftOutlined, SettingOutlined, WifiOutlined, DisconnectOutlined, LoginOutlined, PlusOutlined, ControlOutlined, InfoCircleOutlined, LockOutlined } from '@ant-design/icons';
+import { UserOutlined, LogoutOutlined, ArrowLeftOutlined, SettingOutlined, DisconnectOutlined, LoginOutlined, PlusOutlined, ControlOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useView } from '../contexts/ViewContext';
 import { useChat } from '../contexts/ChatContext';
@@ -12,14 +12,13 @@ const { Text } = Typography;
 
 const ChatHeader: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
-  const { currentView, goToChannels, goToProfile, goToAdmin, goBack } = useView();
+  const { currentView, goToProfile, goToAdmin, goBack } = useView();
   const { channels, activeChannelId, isServerConnected, connectionError, createChannel } = useChat();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false);
   const [channelInfoModalOpen, setChannelInfoModalOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelDescription, setNewChannelDescription] = useState('');
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
   const activeChannel = channels.find(channel => channel.id === activeChannelId);
@@ -30,7 +29,7 @@ const ChatHeader: React.FC = () => {
       
       try {
         // Проверяем есть ли права администратора (блокировка пользователей)
-        const hasAdminPermission = await apiService.hasPermission('block_users');
+        const hasAdminPermission = await apiService.hasPermission('admin_panel_access');
         setIsAdmin(hasAdminPermission);
       } catch (error) {
         console.error('Error checking admin permissions:', error);
@@ -44,7 +43,7 @@ const ChatHeader: React.FC = () => {
   const handleCreateChannel = async () => {
     if (newChannelName.trim() && user) {
       console.log('Creating channel with name:', newChannelName.trim(), 'description:', newChannelDescription.trim());
-      await createChannel(newChannelName.trim(), user.id, newChannelDescription.trim() || undefined);
+      await createChannel(newChannelName.trim(), newChannelDescription.trim() || undefined);
       setNewChannelName('');
       setNewChannelDescription('');
       setCreateChannelModalOpen(false);
@@ -57,14 +56,6 @@ const ChatHeader: React.FC = () => {
     }
   };
 
-  const handleLongPressStart = () => {
-    // Long press can be used for future functionality
-    // For now, just regular click opens the info
-  };
-
-  const handleLongPressEnd = () => {
-    // Clear any long press timers if needed
-  };
 
   const userMenuItems = [
     {
@@ -160,8 +151,13 @@ const ChatHeader: React.FC = () => {
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <Button type="text" size="small">
                 <Space size="small">
-                  <Avatar size={24} icon={<UserOutlined />} />
-                  {isAdmin && <CrownOutlined style={{ color: '#faad14' }} />}
+                  <Avatar 
+                    size={24} 
+                    icon={<UserOutlined />} 
+                    style={isAdmin ? {
+                      border: '2px solid #faad14'
+                    } : {}}
+                  />
                 </Space>
               </Button>
             </Dropdown>

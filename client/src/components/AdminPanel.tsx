@@ -9,8 +9,8 @@ import {
   PlusOutlined, SafetyOutlined, CopyOutlined, ReloadOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
-import { apiService, type Permission, type Role } from '../services/api';
-import type { User, Channel, Message } from '../types';
+import { apiService } from '../services/api';
+import type { User, Channel, Message, Permission, Role } from '../types';
 
 const { TabPane } = Tabs;
 const { Option } = Select;
@@ -23,7 +23,17 @@ const AdminPanel: React.FC = () => {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [permissions, setPermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Available permissions for role assignment (using permission IDs)
+  const availablePermissions = permissions.map(p => p.id);
+
+  // Permission labels for display
+  const permissionLabels: Record<string, string> = permissions.reduce((acc, p) => {
+    acc[p.id] = `${p.name} - ${p.description}`;
+    return acc;
+  }, {} as Record<string, string>);
   
   // System-protected roles that cannot be modified - computed from loaded roles
   const SYSTEM_PROTECTED_ROLES = roles.filter(role => 
@@ -89,17 +99,19 @@ const AdminPanel: React.FC = () => {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [usersData, channelsData, messagesData, rolesData] = await Promise.all([
+      const [usersData, channelsData, messagesData, rolesData, permissionsData] = await Promise.all([
         apiService.getAllUsers(),
         apiService.getChannels(),
         apiService.getMessages(),
         apiService.getRoles(),
+        apiService.getAllPermissions(),
       ]);
       
       setUsers(usersData.users);
       setChannels(channelsData.channels);
       setMessages(messagesData.messages);
       setRoles(rolesData.roles);
+      setPermissions(permissionsData.permissions);
     } catch (error) {
       message.error('Failed to load data: ' + error);
     } finally {
@@ -126,16 +138,6 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleToggleUserBlock = async (userId: string, currentRole: string) => {
-    try {
-      const newRole = currentRole === 'blocked' ? 'user' : 'blocked';
-      await apiService.updateUser(userId, { role: newRole });
-      message.success(`User ${newRole === 'blocked' ? 'blocked' : 'unblocked'} successfully`);
-      loadAllData();
-    } catch (error) {
-      message.error('Failed to update user: ' + error);
-    }
-  };
 
   const handleDeleteUser = async (userId: string) => {
     try {
@@ -150,7 +152,7 @@ const AdminPanel: React.FC = () => {
   // Channel Management Functions
   const handleCreateChannel = async (values: any) => {
     try {
-      await apiService.createChannel(values.name, user.id, values.description);
+      await apiService.createChannel(values.name, values.description);
       message.success('Channel created successfully');
       setCreateChannelModal(false);
       channelForm.resetFields();
@@ -174,8 +176,7 @@ const AdminPanel: React.FC = () => {
   // Message Management Functions
   const handleCreateMessage = async (values: any) => {
     try {
-      if (!user) return;
-      await apiService.createMessage(values.channelId, user.id, user.username, values.content);
+      await apiService.createMessage(values.channelId, values.content);
       message.success('Message created successfully');
       setCreateMessageModal(false);
       messageForm.resetFields();
@@ -258,7 +259,7 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleUpdateRolePermissions = async (roleId: string, permissions: Permission[], name?: string) => {
+  const handleUpdateRolePermissions = async (roleId: string, permissions: string[], name?: string) => {
     try {
       const currentRole = roles.find(r => r.id === roleId);
       if (!currentRole) return;
@@ -268,19 +269,8 @@ const AdminPanel: React.FC = () => {
         await apiService.updateRole(roleId, { name: name.trim() });
       }
 
-      // Find permissions to add and remove
-      const toAdd = permissions.filter(p => !currentRole.permissions.includes(p));
-      const toRemove = currentRole.permissions.filter(p => !permissions.includes(p));
-
-      // Add new permissions
-      for (const permission of toAdd) {
-        await apiService.addPermissionToRole(roleId, permission);
-      }
-
-      // Remove old permissions
-      for (const permission of toRemove) {
-        await apiService.removePermissionFromRole(roleId, permission);
-      }
+      // Update role with new permissions
+      await apiService.updateRole(roleId, { permissions });
 
       message.success('Role updated successfully');
       setPermissionsModal(null);
@@ -290,27 +280,6 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const availablePermissions: Permission[] = [
-    'account_access',
-    'send_messages',
-    'pin_messages',
-    'delete_messages', 
-    'create_channels',
-    'delete_channels',
-    'pin_channels',
-    'block_users'
-  ];
-
-  const permissionLabels = {
-    'account_access': 'Account Access',
-    'send_messages': 'Send Messages',
-    'pin_messages': 'Pin Messages',
-    'delete_messages': 'Delete Messages',
-    'create_channels': 'Create Channels', 
-    'delete_channels': 'Delete Channels',
-    'pin_channels': 'Pin Channels',
-    'block_users': 'Block Users'
-  };
 
   // User Table Columns
   const userColumns = [
@@ -339,7 +308,6 @@ const AdminPanel: React.FC = () => {
               setEditUserModal(record);
               editUserForm.setFieldsValue({
                 bio: record.bio,
-                email: record.email,
                 role: record.role
               });
             }}
@@ -483,11 +451,11 @@ const AdminPanel: React.FC = () => {
     { title: 'ID', dataIndex: 'id', key: 'id', render: (id: string) => renderShortId(id) },
     { title: 'Name', dataIndex: 'name', key: 'name' },
     { title: 'Permissions', dataIndex: 'permissions', key: 'permissions',
-      render: (permissions: Permission[]) => (
+      render: (permissions: string[]) => (
         <div>
-          {permissions.map(permission => (
-            <Tag key={permission} color="blue" style={{ margin: '2px' }}>
-              {permissionLabels[permission]}
+          {permissions.map(permissionId => (
+            <Tag key={permissionId} color="blue" style={{ margin: '2px' }}>
+              {permissionLabels[permissionId] || permissionId}
             </Tag>
           ))}
         </div>

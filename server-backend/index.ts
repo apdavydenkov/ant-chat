@@ -21,7 +21,7 @@ app.use(cors());
 app.use(express.json({ limit: '1mb' })); // Limit JSON payload size
 
 // Rate limiting
-app.use(createRateLimit(60000, 100)); // 100 requests per minute per IP
+app.use(createRateLimit(60000, 300)); // 300 requests per minute per IP
 
 
 // API Routes

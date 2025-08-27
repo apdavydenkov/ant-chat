@@ -1,18 +1,26 @@
 [
   {
-    "id": "c87d21ad-d234-4d64-b80e-58807833cf12",
-    "channelId": "466c0b1f-9116-462d-b071-17ee7625693e",
-    "createdBy": "e3d50477-8686-47f1-b120-d204dbca23d3",
-    "content": "Приветствие от админа!",
-    "createdAt": "2025-08-26T13:17:40.508Z",
-    "isPinned": true
-  },
-  {
     "id": "1a09af39-8010-48fd-a9c9-54532a69ebe1",
     "channelId": "466c0b1f-9116-462d-b071-17ee7625693e",
     "createdBy": "e43fd2c0-293b-4493-b057-ac7bca6b65d1",
     "content": "Приветствие от обычного пользователя!",
     "createdAt": "2025-08-26T13:17:40.508Z",
+    "isPinned": false
+  },
+  {
+    "id": "de1324a2-6340-475a-98cb-54114fb56796",
+    "channelId": "466c0b1f-9116-462d-b071-17ee7625693e",
+    "content": "FINAL FIX TEST MESSAGE",
+    "isPinned": false,
+    "createdBy": "e3d50477-8686-47f1-b120-d204dbca23d3",
+    "createdAt": "2025-08-26T22:21:53.187Z"
+  },
+  {
+    "id": "bd715dea-9739-42f0-a6fd-21752dc5a175",
+    "channelId": "466c0b1f-9116-462d-b071-17ee7625693e",
+    "createdBy": "e43fd2c0-293b-4493-b057-ac7bca6b65d1",
+    "content": "Ты кто",
+    "createdAt": "2025-08-26T22:58:11.010Z",
     "isPinned": false
   }
 ]

@@ -2,7 +2,7 @@
   {
     "id": "admin-role",
     "name": "admin",
-    "description": "Админ с полными правами",
+    "description": "Админ",
     "type": "default",
     "permissions": [
       "1",
@@ -39,7 +39,7 @@
   {
     "id": "user-role",
     "name": "user",
-    "description": "Пользователи",
+    "description": "Пользовател",
     "type": "default",
     "permissions": [
       "1",
@@ -47,7 +47,9 @@
       "3",
       "5",
       "17",
-      "19"
+      "18",
+      "19",
+      "24"
     ],
     "createdAt": "2025-08-26T13:17:40.505Z"
   },

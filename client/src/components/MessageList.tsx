@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Typography, Dropdown, Modal, message, type MenuProps } from 'antd';
+import { Typography, Dropdown, message, type MenuProps } from 'antd';
 import { DeleteOutlined, PushpinOutlined, PushpinFilled, CopyOutlined } from '@ant-design/icons';
 import { useChat } from '../contexts/ChatContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,7 +9,7 @@ import type { Message } from '../types';
 const { Text } = Typography;
 
 const MessageList: React.FC = () => {
-  const { messages, activeChannelId, deleteMessage, pinMessage, unpinMessage } = useChat();
+  const { messages, activeChannelId, deleteMessage, pinMessage, unpinMessage, getUserName } = useChat();
   const { user } = useAuth();
   const { goToProfile } = useView();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -18,7 +18,7 @@ const MessageList: React.FC = () => {
   const sortedMessages = [...channelMessages].sort((a, b) => {
     if (a.isPinned && !b.isPinned) return -1;
     if (!a.isPinned && b.isPinned) return 1;
-    return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
   });
 
   const scrollToBottom = () => {
@@ -46,7 +46,7 @@ const MessageList: React.FC = () => {
   };
 
   const getMessageContextMenu = (messageItem: Message): MenuProps['items'] => {
-    const isOwner = user?.id === messageItem.userId;
+    const isOwner = user?.id === messageItem.createdBy;
     const canManage = user?.role === 'admin' || isOwner;
     
     const items = [];
@@ -94,8 +94,8 @@ const MessageList: React.FC = () => {
   };
 
   const renderMessage = (message: Message) => {
-    const isOwner = user?.id === message.userId;
-    const isSystem = message.userId === 'system';
+    const isOwner = user?.id === message.createdBy;
+    const isSystem = message.createdBy === 'system';
 
     return (
       <Dropdown
@@ -135,9 +135,9 @@ const MessageList: React.FC = () => {
                     color: '#1890ff', 
                     cursor: 'pointer'
                   }}
-                  onClick={() => goToProfile(message.userId)}
+                  onClick={() => goToProfile(message.createdBy)}
                 >
-                  {message.username}
+                  {getUserName(message.createdBy)}
                 </Text>
               </div>
             )}
@@ -153,7 +153,7 @@ const MessageList: React.FC = () => {
             
             <div style={{ textAlign: 'right' }}>
               <Text type="secondary" style={{ fontSize: '10px' }}>
-                {formatTime(message.timestamp)}
+                {formatTime(message.createdAt)}
               </Text>
             </div>
           </div>

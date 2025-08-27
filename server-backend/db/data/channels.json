@@ -1,11 +1,10 @@
 [
   {
     "id": "466c0b1f-9116-462d-b071-17ee7625693e",
-    "name": "Добро пожаловать",
-    "isPinned": true,
+    "name": "Добро пожаловать!",
+    "isPinned": false,
     "createdBy": "e3d50477-8686-47f1-b120-d204dbca23d3",
     "createdAt": "2025-08-26T13:17:40.507Z",
-    "description": "Приветственный канал для новых пользователей",
     "isReadOnly": false
   }
 ]

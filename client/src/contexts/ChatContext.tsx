@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import type { Channel, Message } from '../types';
+import type { Channel, Message, User } from '../types';
 import { apiService } from '../services/api';
 import { socketService } from '../services/socket';
 import { logger } from '../utils/logger';
+import { useAuth } from './AuthContext';
 
 interface ChatContextType {
   channels: Channel[];
@@ -10,16 +11,17 @@ interface ChatContextType {
   activeChannelId: string | null;
   isServerConnected: boolean;
   connectionError: string | null;
-  createChannel: (name: string, createdBy: string, description?: string) => Promise<void>;
+  createChannel: (name: string, description?: string) => Promise<void>;
   updateChannel: (channelId: string, updates: { name?: string; isPinned?: boolean; isReadOnly?: boolean; description?: string }) => Promise<void>;
   deleteChannel: (channelId: string) => Promise<void>;
   setActiveChannel: (channelId: string | null) => void;
-  addMessage: (channelId: string, userId: string, username: string, content: string) => Promise<void>;
+  addMessage: (channelId: string, content: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   pinMessage: (messageId: string) => Promise<void>;
   unpinMessage: (messageId: string) => Promise<void>;
   pinChannel: (channelId: string) => Promise<void>;
   unpinChannel: (channelId: string) => Promise<void>;
+  getUserName: (userId: string) => string;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -37,15 +39,53 @@ interface ChatProviderProps {
 }
 
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
+  const { user } = useAuth();
+  
   // Просто статические данные для тестирования
   const [channels, setChannels] = useState<Channel[]>([]);
 
   const [messages, setMessages] = useState<Message[]>([]);
+  
+  // Кеш пользователей для отображения имен
+  const [userCache, setUserCache] = useState<Map<string, User>>(new Map());
 
-  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
+  const [activeChannelId, setActiveChannelId] = useState<string | null>(() => {
+    // Restore active channel from localStorage
+    return localStorage.getItem('activeChannelId') || null;
+  });
 
   const [isServerConnected, setIsServerConnected] = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  // Функция для получения пользователя и кеширования
+  const loadUser = useCallback(async (userId: string) => {
+    if (userCache.has(userId)) {
+      return userCache.get(userId)!;
+    }
+
+    try {
+      const { user: userData } = await apiService.getUser(userId);
+      setUserCache(prev => new Map(prev).set(userId, userData));
+      return userData;
+    } catch (error) {
+      console.error('Error loading user:', userId, error);
+      return null;
+    }
+  }, [userCache]);
+
+  // Функция для получения имени пользователя
+  const getUserName = useCallback((userId: string): string => {
+    const cachedUser = userCache.get(userId);
+    if (cachedUser) {
+      return cachedUser.username;
+    }
+
+    // Загружаем пользователя асинхронно
+    loadUser(userId);
+    
+    // Возвращаем placeholder пока загружается
+    return 'Loading...';
+  }, [userCache, loadUser]);
 
 
 
@@ -66,20 +106,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
   }, []);
 
-  const loadMessages = useCallback(async () => {
-    try {
-      const { messages: serverMessages } = await apiService.getMessages();
-      setMessages(serverMessages);
-      setIsServerConnected(true);
-      setConnectionError(null);
-    } catch (error) {
-      console.error('Failed to load messages:', error);
-      setIsServerConnected(false);
-      setConnectionError('Нет соединения с сервером. Работаем в офлайн режиме.');
-      
-      // Оставляем пустой массив сообщений
-    }
-  }, []);
 
   const setupWebSocketListeners = useCallback(() => {
     socketService.onMessageReceived((message) => {
@@ -109,10 +135,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     });
   }, [activeChannelId]);
 
-  const createChannel = useCallback(async (name: string, createdBy: string, description?: string) => {
+  const createChannel = useCallback(async (name: string, description?: string) => {
     try {
-      logger.info('client', 'CREATE_CHANNEL_START', { name, createdBy, description });
-      const { channel } = await apiService.createChannel(name, createdBy, description);
+      logger.info('client', 'CREATE_CHANNEL_START', { name, description });
+      const { channel } = await apiService.createChannel(name, description);
       setChannels(prev => [...prev, channel]);
       socketService.sendMessage({ type: 'channel-created', channel });
       logger.info('client', 'CREATE_CHANNEL_SUCCESS', { channelId: channel.id, name });
@@ -150,6 +176,18 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
   }, [activeChannelId, isServerConnected]);
 
+  const loadChannelMessages = useCallback(async (channelId: string) => {
+    try {
+      logger.info('client', 'LOAD_MESSAGES_START', { channelId });
+      const { messages } = await apiService.getMessagesByChannel(channelId);
+      setMessages(messages);
+      logger.info('client', 'LOAD_MESSAGES_SUCCESS', { channelId, count: messages.length });
+    } catch (error) {
+      logger.error('client', 'LOAD_MESSAGES_FAILED', { channelId, error });
+      console.error('Failed to load messages for channel:', channelId, error);
+    }
+  }, []);
+
   const setActiveChannel = useCallback((channelId: string | null) => {
     logger.info('client', 'SET_ACTIVE_CHANNEL', { from: activeChannelId, to: channelId });
     
@@ -162,22 +200,26 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     if (channelId) {
       localStorage.setItem('activeChannelId', channelId);
       socketService.joinChannel(channelId);
+      // Load messages for the new channel
+      loadChannelMessages(channelId);
     } else {
       localStorage.removeItem('activeChannelId');
+      setMessages([]); // Clear messages when no channel selected
     }
-  }, [activeChannelId]);
+  }, [activeChannelId, loadChannelMessages]);
 
-  const addMessage = async (channelId: string, userId: string, username: string, content: string) => {
-    logger.info('client', 'ADD_MESSAGE_START', { channelId, userId, username, content });
+  const addMessage = async (channelId: string, content: string) => {
+    if (!user?.id) return;
+    
+    logger.info('client', 'ADD_MESSAGE_START', { channelId, content });
     
     // Создаем локальное сообщение
     const localMessage = {
       id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       channelId,
-      userId,
-      username,
+      createdBy: user.id,
       content,
-      timestamp: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       isPinned: false,
     };
 
@@ -187,7 +229,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     if (isServerConnected) {
       try {
-        const { message } = await apiService.createMessage(channelId, userId, username, content);
+        const { message } = await apiService.createMessage(channelId, content);
         // Заменяем локальное сообщение на серверное
         setMessages(prev => prev.map(msg => 
           msg.id === localMessage.id ? message : msg
@@ -277,7 +319,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   useEffect(() => {
     logger.info('client', 'CHAT_CONTEXT_INIT', 'Initializing ChatContext');
     loadChannels();
-    loadMessages();
     setupWebSocketListeners();
     
     return () => {
@@ -309,6 +350,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     unpinMessage,
     pinChannel,
     unpinChannel,
+    getUserName,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

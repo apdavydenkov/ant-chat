@@ -238,8 +238,25 @@ class MockDB {
     const messageIndex = messages.findIndex(message => message.id === id);
     if (messageIndex === -1) return null;
     
-    messages[messageIndex] = { ...messages[messageIndex], ...updates, editedAt: new Date() };
+    // Fixed: Manual field preservation to prevent content loss during updates
+    const original = messages[messageIndex];
+    const updatedMessage = {
+      id: original.id,
+      channelId: original.channelId,
+      content: updates.content !== undefined ? updates.content : original.content,
+      isPinned: updates.isPinned !== undefined ? updates.isPinned : original.isPinned,
+      createdBy: original.createdBy,
+      createdAt: original.createdAt,
+      editedAt: original.editedAt
+    };
+    
+    if (updates.content !== undefined) {
+      updatedMessage.editedAt = new Date();
+    }
+    
+    messages[messageIndex] = updatedMessage;
     await this.writeData(this.messagesFile, messages);
+    console.log('DEBUG updateMessage - Final result:', JSON.stringify(messages[messageIndex], null, 2));
     return messages[messageIndex];
   }
 
