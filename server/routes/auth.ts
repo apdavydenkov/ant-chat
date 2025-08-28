@@ -1,43 +1,100 @@
 import { Router } from 'express';
-import { db } from '../db/mockdb.js';
+import { db } from '../db/mongodb.js';
 import { requireAuth, requirePermission } from '../middleware/auth.js';
+import { generateJWT, verifyTelegramData } from '../utils/jwt.js';
+import dotenv from 'dotenv';
+
+// Ensure env vars are loaded
+dotenv.config();
+
+if (!process.env.TELEGRAM_BOT_TOKEN) {
+  throw new Error('TELEGRAM_BOT_TOKEN is required in environment variables');
+}
 
 const router = Router();
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
-// Login/Register
-router.post('/login', async (req, res) => {
+// Telegram Login
+router.post('/telegram-login', async (req, res) => {
   try {
-    const { username } = req.body;
     
-    if (!username || typeof username !== 'string' || username.length < 1 || username.length > 50) {
-      return res.status(400).json({ error: 'Username must be a string between 1 and 50 characters' });
+    const telegramData = req.body;
+    
+    // Verify Telegram data authenticity
+    if (!verifyTelegramData(telegramData, BOT_TOKEN)) {
+      return res.status(400).json({ error: 'Invalid Telegram data' });
     }
     
-    // Sanitize username - only allow alphanumeric, underscore, dash
-    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
-      return res.status(400).json({ error: 'Username can only contain letters, numbers, underscore, and dash' });
-    }
-
-    // Check if user exists
-    let user = await db.getUserByUsername(username);
+    const { id: telegramId, first_name, last_name, username, photo_url } = telegramData;
     
-    // If user doesn't exist, create new user
+    // Check if user already exists
+    let user = await db.getUserByTelegramId(telegramId);
+    
     if (!user) {
-      user = await db.createUser({ username });
+      // Create new user
+      const displayName = username || `${first_name}${last_name ? ' ' + last_name : ''}`;
+      user = await db.createUser({
+        username: displayName,
+        telegramId,
+        firstName: first_name,
+        lastName: last_name,
+        photoUrl: photo_url
+      });
     } else {
-      // Проверяем доступ к аккаунту через роли
+      // Check account access
       const hasAccess = await db.hasPermission(user.id, 'account_access');
       if (!hasAccess) {
-        return res.status(403).json({ error: 'Доступ к аккаунту запрещен. Обратитесь к администратору.' });
+        return res.status(403).json({ error: 'Account access denied. Contact administrator.' });
       }
       
-      // Update last active
-      user = await db.updateUser(user.id, { lastActive: new Date() });
+      // Update user data
+      user = await db.updateUser(user.id, {
+        firstName: first_name,
+        lastName: last_name,
+        photoUrl: photo_url,
+        lastActive: new Date()
+      });
     }
-
-    res.json({ user });
+    
+    // Generate JWT token
+    const token = generateJWT(user.id, user.username, telegramId);
+    
+    res.json({ user, token });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Telegram login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Verify token and get current user
+router.get('/me', requireAuth, async (req, res) => {
+  try {
+    res.json({ user: req.user });
+  } catch (error) {
+    console.error('Get current user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get public user info (no auth required)
+router.get('/user/:id/public', async (req, res) => {
+  try {
+    const user = await db.getUserById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Return public information
+    const publicUserInfo = {
+      id: user.id,
+      role: user.role,
+      firstName: user.firstName,
+      lastName: user.lastName
+    };
+    
+    res.json({ user: publicUserInfo });
+  } catch (error) {
+    console.error('Get public user info error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -114,7 +171,7 @@ router.post('/users', requireAuth, requirePermission('create_users'), async (req
 // Update user profile
 router.put('/user/:id', requireAuth, async (req, res) => {
   try {
-    const { bio, avatar } = req.body;
+    const { bio, avatar, firstName, lastName } = req.body;
     const targetUserId = req.params.id;
     
     // Only allow users to edit their own profile, or users with edit_users_all permission to edit any profile
@@ -132,10 +189,8 @@ router.put('/user/:id', requireAuth, async (req, res) => {
       if (typeof bio !== 'string' || bio.length > 500) {
         return res.status(400).json({ error: 'Bio must be a string with max 500 characters' });
       }
-      // Remove HTML tags and dangerous characters
       updateData.bio = bio.replace(/<[^>]*>/g, '').replace(/[<>'"&]/g, '');
     }
-    
     
     if (avatar !== undefined) {
       if (typeof avatar !== 'string' || avatar.length > 200) {
@@ -144,6 +199,19 @@ router.put('/user/:id', requireAuth, async (req, res) => {
       updateData.avatar = avatar;
     }
     
+    if (firstName !== undefined) {
+      if (typeof firstName !== 'string' || firstName.length > 50) {
+        return res.status(400).json({ error: 'First name must be a string with max 50 characters' });
+      }
+      updateData.firstName = firstName.replace(/<[^>]*>/g, '').replace(/[<>'"&]/g, '');
+    }
+    
+    if (lastName !== undefined) {
+      if (typeof lastName !== 'string' || lastName.length > 50) {
+        return res.status(400).json({ error: 'Last name must be a string with max 50 characters' });
+      }
+      updateData.lastName = lastName.replace(/<[^>]*>/g, '').replace(/[<>'"&]/g, '');
+    }
     
     const user = await db.updateUser(targetUserId, updateData);
     if (!user) {

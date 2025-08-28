@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db } from '../db/mockdb.js';
+import { db } from '../db/mongodb.js';
 import { requireAuth, requirePermission } from '../middleware/auth.js';
 
 const router = Router();
@@ -29,6 +29,13 @@ router.post('/', requireAuth, requirePermission('create_channels'), async (req, 
       createdBy: req.userId!, 
       description 
     });
+    
+    // Broadcast channel creation via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('channel-created', channel);
+    }
+    
     res.json({ channel });
   } catch (error) {
     console.error('Create channel error:', error);
@@ -78,6 +85,13 @@ router.put('/:id', requireAuth, async (req, res) => {
     }
     
     const updatedChannel = await db.updateChannel(req.params.id, { name, isPinned, description, isReadOnly });
+    
+    // Broadcast channel update via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('channel-updated', updatedChannel);
+    }
+    
     res.json({ channel: updatedChannel });
   } catch (error) {
     console.error('Update channel error:', error);
@@ -104,6 +118,13 @@ router.delete('/:id', requireAuth, async (req, res) => {
     }
     
     const success = await db.deleteChannel(req.params.id);
+    
+    // Broadcast channel deletion via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('channel-deleted', { channelId: req.params.id });
+    }
+    
     res.json({ success: true });
   } catch (error) {
     console.error('Delete channel error:', error);

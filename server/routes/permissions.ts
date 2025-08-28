@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { db } from '../db/mockdb.js';
+import { db } from '../db/mongodb.js';
 import { requireAuth, requirePermission } from '../middleware/auth.js';
 
 const router = Router();
 
 // Get all permissions
-router.get('/', requireAuth, requirePermission('view_roles'), async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const permissions = await db.getAllPermissions();
     res.json({ permissions });

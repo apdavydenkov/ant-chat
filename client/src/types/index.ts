@@ -6,6 +6,10 @@ export interface User {
   bio?: string;
   joinedAt: string;
   lastActive: string;
+  telegramId?: number;
+  firstName?: string;
+  lastName?: string;
+  photoUrl?: string;
 }
 
 export type PermissionName = 
@@ -31,7 +35,6 @@ export type PermissionName =
   | 'create_users'
   | 'delete_users'
   | 'change_roles'
-  | 'view_roles'
   | 'create_roles'
   | 'edit_roles'
   | 'delete_roles'
@@ -78,10 +81,10 @@ export interface Message {
 
 export interface AuthContextType {
   user: User | null;
-  login: (username: string) => Promise<void>;
   logout: () => void;
   updateUser: (user: User) => void;
   isAuthenticated: boolean;
+  telegramLogin: (telegramData: any) => Promise<void>;
 }
 
 export type ViewType = 'channels' | 'chat' | 'profile' | 'admin';

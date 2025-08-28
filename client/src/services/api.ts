@@ -4,10 +4,22 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 
 class ApiService {
-  private currentUserId: string | null = null;
+  setAuthToken(token: string | null) {
+    if (token) {
+      localStorage.setItem('authToken', token);
+    } else {
+      localStorage.removeItem('authToken');
+    }
+  }
 
-  setCurrentUser(userId: string) {
-    this.currentUserId = userId;
+  clearAuth() {
+    localStorage.removeItem('authToken');
+  }
+
+  private getAuthToken(): string | null {
+    const token = localStorage.getItem('authToken');
+    console.log('[API] Reading token from localStorage:', token ? token.substring(0, 20) + '...' : 'NULL');
+    return token;
   }
 
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -16,8 +28,9 @@ class ApiService {
       ...(options?.headers as Record<string, string> || {}),
     };
 
-    if (this.currentUserId) {
-      headers['x-user-id'] = this.currentUserId;
+    const token = this.getAuthToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
     const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -26,7 +39,14 @@ class ApiService {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      if (response.status === 401) {
+        // Unauthorized - clear auth completely
+        this.clearAuth();
+        // Force page reload to trigger auth redirect
+        window.location.reload();
+        throw new Error('Session expired. Please login again.');
+      }
+      const error = await response.json().catch(() => ({ error: 'API request failed' }));
       throw new Error(error.error || 'API request failed');
     }
 
@@ -34,15 +54,23 @@ class ApiService {
   }
 
   // Auth
-  async login(username: string): Promise<{ user: User }> {
-    return this.request('/auth/login', {
+  async telegramLogin(telegramData: any): Promise<{ user: User; token: string }> {
+    return this.request('/auth/telegram-login', {
       method: 'POST',
-      body: JSON.stringify({ username }),
+      body: JSON.stringify(telegramData),
     });
+  }
+
+  async getCurrentUser(): Promise<{ user: User }> {
+    return this.request('/auth/me');
   }
 
   async getUser(id: string): Promise<{ user: User }> {
     return this.request(`/auth/user/${id}`);
+  }
+
+  async getPublicUser(id: string): Promise<{ user: { id: string; role: string; firstName?: string; lastName?: string } }> {
+    return this.request(`/auth/user/${id}/public`);
   }
 
   async updateUser(id: string, updates: Partial<User>): Promise<{ user: User }> {
@@ -205,3 +233,8 @@ class ApiService {
 }
 
 export const apiService = new ApiService();
+
+// For debugging/testing - expose to window
+if (typeof window !== 'undefined') {
+  (window as any).apiService = apiService;
+}

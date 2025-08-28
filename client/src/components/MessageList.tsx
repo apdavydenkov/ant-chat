@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-import { Typography, Dropdown, message, type MenuProps } from 'antd';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { Typography, Dropdown, message, Spin, type MenuProps } from 'antd';
 import { DeleteOutlined, PushpinOutlined, PushpinFilled, CopyOutlined } from '@ant-design/icons';
 import { useChat } from '../contexts/ChatContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,11 +8,49 @@ import type { Message } from '../types';
 
 const { Text } = Typography;
 
+interface UserInfo {
+  id: string;
+  role: string;
+  firstName?: string;
+  lastName?: string;
+}
+
 const MessageList: React.FC = () => {
-  const { messages, activeChannelId, deleteMessage, pinMessage, unpinMessage, getUserName } = useChat();
+  const { messages, activeChannelId, isLoading, deleteMessage, pinMessage, unpinMessage, getUserInfo, showLoginModal } = useChat();
   const { user } = useAuth();
   const { goToProfile } = useView();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [userInfoCache, setUserInfoCache] = useState<Map<string, UserInfo>>(new Map());
+
+  const loadUserInfo = useCallback(async (userId: string) => {
+    if (userInfoCache.has(userId)) return;
+    
+    const userInfo = await getUserInfo(userId);
+    if (userInfo) {
+      setUserInfoCache(prev => new Map(prev).set(userId, userInfo));
+    }
+  }, [getUserInfo, userInfoCache]);
+
+  const getUserDisplayName = (userId: string): string => {
+    const cached = userInfoCache.get(userId);
+    if (cached) {
+      console.log(`getUserDisplayName for user ${userId}, auth: ${!!user}:`, cached); // Логирование данных
+      const nameParts = [cached.firstName, cached.lastName].filter(part => part && part.trim() !== '');
+      return nameParts.join(' ');
+    }
+    
+    loadUserInfo(userId);
+    console.log(`getUserDisplayName for user ${userId}, auth: ${!!user}: no data yet`);
+    return '';
+  };
+
+  const handleUsernameClick = (userId: string) => {
+    if (user) {
+      goToProfile(userId);
+    } else {
+      showLoginModal();
+    }
+  };
 
   const channelMessages = messages.filter(message => message.channelId === activeChannelId);
   const sortedMessages = [...channelMessages].sort((a, b) => {
@@ -51,7 +89,6 @@ const MessageList: React.FC = () => {
     
     const items = [];
     
-    // Копирование доступно всем
     items.push({
       key: 'copy',
       label: 'Копировать',
@@ -59,7 +96,6 @@ const MessageList: React.FC = () => {
       onClick: () => copyMessageToClipboard(messageItem.content),
     });
     
-    // Закрепление только для админов
     if (user?.role === 'admin') {
       items.push({
         key: 'pin',
@@ -69,7 +105,6 @@ const MessageList: React.FC = () => {
       });
     }
     
-    // Удаление для админов и владельцев сообщений
     if (canManage) {
       items.push({
         key: 'delete',
@@ -96,6 +131,8 @@ const MessageList: React.FC = () => {
   const renderMessage = (message: Message) => {
     const isOwner = user?.id === message.createdBy;
     const isSystem = message.createdBy === 'system';
+    const displayName = getUserDisplayName(message.createdBy);
+    console.log(`renderMessage for user ${message.createdBy}, auth: ${!!user}, displayName: ${displayName}`); // Логирование отображаемого имени
 
     return (
       <Dropdown
@@ -126,18 +163,18 @@ const MessageList: React.FC = () => {
               boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
             }}
           >
-            {!isOwner && !isSystem && (
+            {!isSystem && (
               <div style={{ marginBottom: '4px' }}>
                 <Text 
                   strong 
                   style={{ 
                     fontSize: '12px', 
                     color: '#1890ff', 
-                    cursor: 'pointer'
+                    cursor: user ? 'pointer' : 'default'
                   }}
-                  onClick={() => goToProfile(message.createdBy)}
+                  onClick={() => handleUsernameClick(message.createdBy)}
                 >
-                  {getUserName(message.createdBy)}
+                  {displayName}
                 </Text>
               </div>
             )}
@@ -179,7 +216,18 @@ const MessageList: React.FC = () => {
   return (
     <div style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <div style={{ flex: 1, overflow: 'auto', padding: '8px 0' }}>
-        {sortedMessages.length === 0 ? (
+        {isLoading ? (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '100%'
+          }}>
+            <Spin size="large">
+              <div style={{ padding: 20 }}>Загрузка сообщений...</div>
+            </Spin>
+          </div>
+        ) : sortedMessages.length === 0 ? (
           <div style={{ 
             display: 'flex', 
             justifyContent: 'center', 

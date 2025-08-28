@@ -2,8 +2,14 @@ import React, { createContext, useContext, useState, useEffect, useCallback, typ
 import type { Channel, Message, User } from '../types';
 import { apiService } from '../services/api';
 import { socketService } from '../services/socket';
-import { logger } from '../utils/logger';
 import { useAuth } from './AuthContext';
+
+interface UserInfo {
+  id: string;
+  role: string;
+  firstname?: string;
+  lastname?: string;
+}
 
 interface ChatContextType {
   channels: Channel[];
@@ -11,6 +17,7 @@ interface ChatContextType {
   activeChannelId: string | null;
   isServerConnected: boolean;
   connectionError: string | null;
+  isLoading: boolean;
   createChannel: (name: string, description?: string) => Promise<void>;
   updateChannel: (channelId: string, updates: { name?: string; isPinned?: boolean; isReadOnly?: boolean; description?: string }) => Promise<void>;
   deleteChannel: (channelId: string) => Promise<void>;
@@ -21,7 +28,10 @@ interface ChatContextType {
   unpinMessage: (messageId: string) => Promise<void>;
   pinChannel: (channelId: string) => Promise<void>;
   unpinChannel: (channelId: string) => Promise<void>;
-  getUserName: (userId: string) => string;
+  getUserInfo: (userId: string) => Promise<UserInfo | null>;
+  showLoginModal: () => void;
+  loginModalVisible: boolean;
+  setLoginModalVisible: (visible: boolean) => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -41,59 +51,34 @@ interface ChatProviderProps {
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const { user } = useAuth();
   
-  // Просто статические данные для тестирования
   const [channels, setChannels] = useState<Channel[]>([]);
-
   const [messages, setMessages] = useState<Message[]>([]);
-  
-  // Кеш пользователей для отображения имен
-  const [userCache, setUserCache] = useState<Map<string, User>>(new Map());
-
   const [activeChannelId, setActiveChannelId] = useState<string | null>(() => {
-    // Restore active channel from localStorage
     return localStorage.getItem('activeChannelId') || null;
   });
-
   const [isServerConnected, setIsServerConnected] = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [loginModalVisible, setLoginModalVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Функция для получения пользователя и кеширования
-  const loadUser = useCallback(async (userId: string) => {
-    if (userCache.has(userId)) {
-      return userCache.get(userId)!;
-    }
+  const showLoginModal = useCallback(() => {
+    setLoginModalVisible(true);
+  }, []);
 
+  const getUserInfo = useCallback(async (userId: string): Promise<UserInfo | null> => {
     try {
-      const { user: userData } = await apiService.getUser(userId);
-      setUserCache(prev => new Map(prev).set(userId, userData));
+      const { user: userData } = await apiService.getPublicUser(userId);
       return userData;
     } catch (error) {
-      console.error('Error loading user:', userId, error);
+      console.error('Error loading user info:', userId, error);
       return null;
     }
-  }, [userCache]);
-
-  // Функция для получения имени пользователя
-  const getUserName = useCallback((userId: string): string => {
-    const cachedUser = userCache.get(userId);
-    if (cachedUser) {
-      return cachedUser.username;
-    }
-
-    // Загружаем пользователя асинхронно
-    loadUser(userId);
-    
-    // Возвращаем placeholder пока загружается
-    return 'Loading...';
-  }, [userCache, loadUser]);
-
-
+  }, []);
 
   const loadChannels = useCallback(async () => {
     try {
-      console.log('Loading channels from server...');
+      setIsLoading(true);
       const { channels: serverChannels } = await apiService.getChannels();
-      console.log('Loaded channels:', serverChannels);
       setChannels(serverChannels);
       setIsServerConnected(true);
       setConnectionError(null);
@@ -101,11 +86,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       console.error('Failed to load channels:', error);
       setIsServerConnected(false);
       setConnectionError('Нет соединения с сервером. Работаем в офлайн режиме.');
-      
-      // Оставляем пустой массив каналов
+    } finally {
+      setIsLoading(false);
     }
   }, []);
-
 
   const setupWebSocketListeners = useCallback(() => {
     socketService.onMessageReceived((message) => {
@@ -133,28 +117,31 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         setActiveChannelId(null);
       }
     });
+
+    socketService.onChannelUpdated((updatedChannel) => {
+      setChannels(prev => prev.map(c => 
+        c.id === updatedChannel.id ? updatedChannel : c
+      ));
+    });
   }, [activeChannelId]);
 
   const createChannel = useCallback(async (name: string, description?: string) => {
     try {
-      logger.info('client', 'CREATE_CHANNEL_START', { name, description });
       const { channel } = await apiService.createChannel(name, description);
-      setChannels(prev => [...prev, channel]);
-      socketService.sendMessage({ type: 'channel-created', channel });
-      logger.info('client', 'CREATE_CHANNEL_SUCCESS', { channelId: channel.id, name });
+      // Channel will be added via WebSocket broadcast, no need to add locally
+      if (!isServerConnected) {
+        setChannels(prev => [...prev, channel]);
+      }
     } catch (error) {
-      logger.error('client', 'CREATE_CHANNEL_FAILED', error);
       console.error('Failed to create channel:', error);
     }
-  }, []);
+  }, [isServerConnected]);
 
   const updateChannel = useCallback(async (channelId: string, updates: { name?: string; isPinned?: boolean; isReadOnly?: boolean; description?: string }) => {
     try {
       const { channel } = await apiService.updateChannel(channelId, updates);
       setChannels(prev => prev.map(ch => ch.id === channelId ? channel : ch));
-      logger.info('client', 'UPDATE_CHANNEL_SUCCESS', { channelId, updates });
     } catch (error) {
-      logger.error('client', 'UPDATE_CHANNEL_FAILED', error);
       console.error('Failed to update channel:', error);
     }
   }, []);
@@ -162,14 +149,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const deleteChannel = useCallback(async (channelId: string) => {
     try {
       await apiService.deleteChannel(channelId);
-      setChannels(prev => prev.filter(channel => channel.id !== channelId));
-      setMessages(prev => prev.filter(message => message.channelId !== channelId));
-      if (activeChannelId === channelId) {
-        setActiveChannelId(null);
-      }
-      // Отправляем событие через сокет
-      if (isServerConnected) {
-        socketService.sendMessage({ type: 'channel-deleted', data: { channelId } });
+      // Channel deletion will be handled via WebSocket broadcast
+      if (!isServerConnected) {
+        setChannels(prev => prev.filter(channel => channel.id !== channelId));
+        setMessages(prev => prev.filter(message => message.channelId !== channelId));
+        if (activeChannelId === channelId) {
+          setActiveChannelId(null);
+        }
       }
     } catch (error) {
       console.error('Failed to delete channel:', error);
@@ -178,19 +164,17 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   const loadChannelMessages = useCallback(async (channelId: string) => {
     try {
-      logger.info('client', 'LOAD_MESSAGES_START', { channelId });
+      setIsLoading(true);
       const { messages } = await apiService.getMessagesByChannel(channelId);
       setMessages(messages);
-      logger.info('client', 'LOAD_MESSAGES_SUCCESS', { channelId, count: messages.length });
     } catch (error) {
-      logger.error('client', 'LOAD_MESSAGES_FAILED', { channelId, error });
       console.error('Failed to load messages for channel:', channelId, error);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
   const setActiveChannel = useCallback((channelId: string | null) => {
-    logger.info('client', 'SET_ACTIVE_CHANNEL', { from: activeChannelId, to: channelId });
-    
     if (activeChannelId) {
       socketService.leaveChannel(activeChannelId);
     }
@@ -200,59 +184,35 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     if (channelId) {
       localStorage.setItem('activeChannelId', channelId);
       socketService.joinChannel(channelId);
-      // Load messages for the new channel
       loadChannelMessages(channelId);
     } else {
       localStorage.removeItem('activeChannelId');
-      setMessages([]); // Clear messages when no channel selected
+      setMessages([]);
     }
   }, [activeChannelId, loadChannelMessages]);
 
   const addMessage = async (channelId: string, content: string) => {
     if (!user?.id) return;
-    
-    logger.info('client', 'ADD_MESSAGE_START', { channelId, content });
-    
-    // Создаем локальное сообщение
-    const localMessage = {
-      id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      channelId,
-      createdBy: user.id,
-      content,
-      createdAt: new Date().toISOString(),
-      isPinned: false,
-    };
 
-    // Сначала добавляем локально для мгновенного отображения
-    setMessages(prev => [...prev, localMessage]);
-    logger.info('client', 'ADD_MESSAGE_LOCAL', { messageId: localMessage.id });
-
-    if (isServerConnected) {
-      try {
-        const { message } = await apiService.createMessage(channelId, content);
-        // Заменяем локальное сообщение на серверное
-        setMessages(prev => prev.map(msg => 
-          msg.id === localMessage.id ? message : msg
-        ));
-        socketService.sendMessage(message);
-        logger.info('client', 'ADD_MESSAGE_SUCCESS', { localId: localMessage.id, serverId: message.id });
-      } catch (error) {
-        logger.error('client', 'ADD_MESSAGE_FAILED', error);
-        console.error('Failed to send message:', error);
-        setIsServerConnected(false);
-        setConnectionError('Нет соединения с сервером. Работаем в офлайн режиме.');
-        // Локальное сообщение остается
+    try {
+      const { message } = await apiService.createMessage(channelId, content);
+      // Message will be added via WebSocket broadcast, no need to add locally
+      // Only add if WebSocket is not connected
+      if (!isServerConnected) {
+        setMessages(prev => [...prev, message]);
       }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      throw error;
     }
   };
 
   const deleteMessage = async (messageId: string) => {
     try {
       await apiService.deleteMessage(messageId);
-      setMessages(prev => prev.filter(message => message.id !== messageId));
-      // Отправляем событие через сокет
-      if (isServerConnected) {
-        socketService.sendMessage({ type: 'message-deleted', data: { messageId } });
+      // Message deletion will be handled via WebSocket broadcast
+      if (!isServerConnected) {
+        setMessages(prev => prev.filter(message => message.id !== messageId));
       }
     } catch (error) {
       console.error('Failed to delete message:', error);
@@ -262,9 +222,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const pinMessage = async (messageId: string) => {
     try {
       await apiService.updateMessage(messageId, { isPinned: true });
-      setMessages(prev => prev.map(message => 
-        message.id === messageId ? { ...message, isPinned: true } : message
-      ));
+      // Message pin status will be updated via WebSocket broadcast
+      if (!isServerConnected) {
+        setMessages(prev => prev.map(message => 
+          message.id === messageId ? { ...message, isPinned: true } : message
+        ));
+      }
     } catch (error) {
       console.error('Failed to pin message:', error);
     }
@@ -273,9 +236,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const unpinMessage = async (messageId: string) => {
     try {
       await apiService.updateMessage(messageId, { isPinned: false });
-      setMessages(prev => prev.map(message => 
-        message.id === messageId ? { ...message, isPinned: false } : message
-      ));
+      // Message pin status will be updated via WebSocket broadcast
+      if (!isServerConnected) {
+        setMessages(prev => prev.map(message => 
+          message.id === messageId ? { ...message, isPinned: false } : message
+        ));
+      }
     } catch (error) {
       console.error('Failed to unpin message:', error);
     }
@@ -283,7 +249,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   const pinChannel = async (channelId: string) => {
     try {
-      // Находим текущий канал чтобы сохранить его поля
       const currentChannel = channels.find(ch => ch.id === channelId);
       const { channel } = await apiService.updateChannel(channelId, { 
         isPinned: true,
@@ -300,7 +265,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   const unpinChannel = async (channelId: string) => {
     try {
-      // Находим текущий канал чтобы сохранить его поля
       const currentChannel = channels.find(ch => ch.id === channelId);
       const { channel } = await apiService.updateChannel(channelId, { 
         isPinned: false,
@@ -315,24 +279,33 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
   };
 
-  // Инициализация - загружаем данные с сервера
   useEffect(() => {
-    logger.info('client', 'CHAT_CONTEXT_INIT', 'Initializing ChatContext');
+    // Initialize WebSocket connection
+    socketService.connect();
+    
     loadChannels();
     setupWebSocketListeners();
     
     return () => {
       socketService.removeAllListeners();
+      socketService.disconnect();
     };
   }, []);
 
-  // Устанавливаем активный канал если его нет
   useEffect(() => {
-    if (!activeChannelId && channels.length > 0) {
-      console.log('Auto-selecting first channel:', channels[0]);
-      setActiveChannel(channels[0].id);
+    if (channels.length > 0) {
+      if (!activeChannelId) {
+        // Если нет активного канала, выбираем первый
+        setActiveChannel(channels[0].id);
+      } else if (channels.some(ch => ch.id === activeChannelId)) {
+        // Если есть сохранённый активный канал и он существует, загружаем его сообщения
+        loadChannelMessages(activeChannelId);
+      } else {
+        // Если сохранённый канал не найден, выбираем первый доступный
+        setActiveChannel(channels[0].id);
+      }
     }
-  }, [channels, activeChannelId, setActiveChannel]);
+  }, [channels, activeChannelId, setActiveChannel, loadChannelMessages]);
 
   const value: ChatContextType = {
     channels,
@@ -340,6 +313,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     activeChannelId,
     isServerConnected,
     connectionError,
+    isLoading,
     createChannel,
     updateChannel,
     deleteChannel,
@@ -350,7 +324,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     unpinMessage,
     pinChannel,
     unpinChannel,
-    getUserName,
+    getUserInfo,
+    showLoginModal,
+    loginModalVisible,
+    setLoginModalVisible,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

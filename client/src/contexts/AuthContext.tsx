@@ -22,50 +22,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Восстановление пользователя из localStorage при загрузке
   useEffect(() => {
-    const savedUser = localStorage.getItem('chatUser');
-    if (savedUser) {
+    const savedToken = localStorage.getItem('authToken');
+    if (savedToken) {
       try {
-        const user = JSON.parse(savedUser);
+        apiService.setAuthToken(savedToken);
         // Проверяем актуальный статус пользователя на сервере
-        apiService.getUser(user.id).then(({ user: serverUser }) => {
-          if (serverUser.role === 'blocked') {
-            // Пользователь заблокирован - выходим
-            localStorage.removeItem('chatUser');
-            setUser(null);
-          } else {
-            setUser(serverUser);
-            apiService.setCurrentUser(serverUser.id);
-            socketService.connect();
-          }
-        }).catch(() => {
-          // Если сервер недоступен, используем сохраненные данные
-          setUser(user);
-          apiService.setCurrentUser(user.id);
+        apiService.getCurrentUser().then(({ user: serverUser }) => {
+          setUser(serverUser);
           socketService.connect();
+        }).catch(() => {
+          // Токен истек или недействителен
+          apiService.clearAuth();
+          setUser(null);
         });
       } catch (error) {
-        console.error('Error loading saved user:', error);
-        localStorage.removeItem('chatUser');
+        console.error('Error loading saved token:', error);
+        localStorage.removeItem('authToken');
       }
     }
   }, []);
 
-  const login = async (username: string) => {
+  const telegramLogin = async (telegramData: any) => {
     try {
-      const { user: serverUser } = await apiService.login(username);
-      
-      // Проверяем, заблокирован ли пользователь
-      if (serverUser.role === 'blocked') {
-        throw new Error('Ваш аккаунт заблокирован. Обратитесь к администратору.');
-      }
+      const { user: serverUser, token } = await apiService.telegramLogin(telegramData);
       
       setUser(serverUser);
-      apiService.setCurrentUser(serverUser.id);
-      localStorage.setItem('chatUser', JSON.stringify(serverUser));
+      apiService.setAuthToken(token);
       socketService.connect();
     } catch (error) {
-      console.error('Login failed:', error);
-      throw error; // Пробрасываем ошибку дальше, чтобы UI мог её обработать
+      console.error('Telegram login failed:', error);
+      throw error;
     }
   };
 
@@ -76,7 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('chatUser');
+    apiService.clearAuth();
     socketService.disconnect();
   };
 
@@ -84,10 +70,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const value: AuthContextType = {
     user,
-    login,
     logout,
     updateUser,
     isAuthenticated,
+    telegramLogin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

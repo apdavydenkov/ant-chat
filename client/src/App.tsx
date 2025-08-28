@@ -8,12 +8,13 @@ import ChannelList from './components/ChannelList';
 import ChatView from './components/ChatView';
 import ProfileView from './components/ProfileView';
 import AdminPanel from './components/AdminPanel';
+import LoginModal from './components/LoginModal';
 import ruRU from 'antd/locale/ru_RU';
 
 
 const ChatApp: React.FC = () => {
   const { currentView } = useView();
-  const { isServerConnected, connectionError } = useChat();
+  const { isServerConnected, connectionError, loginModalVisible, setLoginModalVisible } = useChat();
 
   const renderCurrentView = () => {
     switch (currentView) {
@@ -49,6 +50,10 @@ const ChatApp: React.FC = () => {
       }}>
         {renderCurrentView()}
       </div>
+      <LoginModal 
+        open={loginModalVisible} 
+        onClose={() => setLoginModalVisible(false)} 
+      />
     </Layout>
   );
 };

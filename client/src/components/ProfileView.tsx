@@ -99,7 +99,7 @@ const ProfileView: React.FC = () => {
     
     try {
       const [canViewPermissions, canEditProfile, canChangeRoles] = await Promise.all([
-        apiService.hasPermission('view_roles'),
+        Promise.resolve(true), // view_roles теперь публичный
         apiService.hasPermission('edit_users_all'),
         apiService.hasPermission('change_roles'),
       ]);
@@ -122,6 +122,10 @@ const ProfileView: React.FC = () => {
   };
 
   // Вспомогательные функции
+  const getDisplayName = (user: User): string => {
+    return [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username;
+  };
+
   const getRoleDescription = (roleName: string): string => {
     const role = roles.find(r => r.name === roleName);
     return role ? role.description : roleName;
@@ -148,6 +152,8 @@ const ProfileView: React.FC = () => {
     if (!user) return;
     
     form.setFieldsValue({
+      firstName: user.firstName ?? '',
+      lastName: user.lastName ?? '',
       bio: user.bio ?? '',
     });
     setIsEditing(true);
@@ -353,6 +359,12 @@ const ProfileView: React.FC = () => {
     if (isEditing) {
       return (
         <Form form={form} layout="vertical">
+          <Form.Item label="Имя" name="firstName">
+            <Input placeholder="Введите имя" />
+          </Form.Item>
+          <Form.Item label="Фамилия" name="lastName">
+            <Input placeholder="Введите фамилию" />
+          </Form.Item>
           <Form.Item label="О себе" name="bio">
             <Input.TextArea placeholder="Расскажите о себе" rows={3} />
           </Form.Item>
@@ -367,7 +379,11 @@ const ProfileView: React.FC = () => {
           <br />
           <Text>{user.bio || 'Не указано'}</Text>
         </div>
-
+        <div style={{ marginBottom: '16px' }}>
+          <Text strong>Имя пользователя:</Text>
+          <br />
+          <Text>{user.username}</Text>
+        </div>
         <div style={{ marginBottom: '16px' }}>
           <Space direction="vertical" size="small" style={{ width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -396,8 +412,8 @@ const ProfileView: React.FC = () => {
   if (loading || roles.length === 0 || !permissionsLoaded) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-        <Spin size="large" />
-      </div>
+      <Spin size="large" />
+    </div>
     );
   }
 
@@ -416,7 +432,7 @@ const ProfileView: React.FC = () => {
         <div style={{ textAlign: 'center', marginBottom: '16px' }}>
           <Avatar size={60} icon={<UserOutlined />} />
           <Title level={4} style={{ marginTop: '8px', marginBottom: '4px' }}>
-            {user.username}
+            {getDisplayName(user)}
           </Title>
           {renderRoleSelect()}
         </div>

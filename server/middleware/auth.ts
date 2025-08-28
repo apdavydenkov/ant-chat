@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { db } from '../db/mockdb.js';
+import { db } from '../db/mongodb.js';
+import { verifyJWT } from '../utils/jwt.js';
 
 declare global {
   namespace Express {
@@ -12,27 +13,37 @@ declare global {
 
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Standardize header handling - only accept lowercase header
-    const userId = req.headers['x-user-id'] as string;
+    const authHeader = req.headers.authorization;
     
-    if (!userId) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log(`[JWT] ❌ No bearer token in request to ${req.method} ${req.url}`);
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const user = await db.getUserById(userId);
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
-    }
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    
+    try {
+      const payload = verifyJWT(token);
+      console.log(`[JWT] ✅ Auth success: ${payload.username} (${payload.userId.substring(0, 8)}...)`);
+      const user = await db.getUserById(payload.userId);
+      
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
 
-    // Проверяем доступ к аккаунту через роли вместо isBlocked
-    const hasAccess = await db.hasPermission(userId, 'account_access');
-    if (!hasAccess) {
-      return res.status(403).json({ error: 'Account access denied' });
-    }
+      // Check account access through roles
+      const hasAccess = await db.hasPermission(payload.userId, 'account_access');
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Account access denied' });
+      }
 
-    req.userId = userId;
-    req.user = user;
-    next();
+      req.userId = payload.userId;
+      req.user = user;
+      next();
+    } catch (jwtError) {
+      console.log(`[JWT] ❌ Token verification failed:`, (jwtError as Error).message);
+      return res.status(401).json({ error: 'Invalid token' });
+    }
   } catch (error) {
     console.error('Auth middleware error:', error);
     res.status(500).json({ error: 'Authentication error' });

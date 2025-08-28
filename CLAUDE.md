@@ -1,10 +1,24 @@
-СИСТЕМА РАЗРЕШЕНИЙ И МАППИНГ API ТОЧЕК
-================================================
+ПРАВИЛА РАЗРАБОТКИ
+==================
+
+ЗАПРЕЩЕНО:
+- ЗАПРЕЩЕНО Хардкодить порты в коде
+- ЗАПРЕЩЕНО Запускать клиент/сервер в коде
+- ЗАПРЕЩЕНО Изменять порты без обновления .env файлов
+- ЗАПРЕЩЕНО Хардкодить ключи, токены, URLs в коде
+
+ОБЯЗАТЕЛЬНО ДЕЛАТЬ:
+- Все порты, ключи, URLs выносить в переменные окружения (.env)
+- Использовать process.env для всех конфигурационных значений
+- Обновлять .env файлы при изменении портов/URLs
+
+ПОЛНАЯ ДОКУМЕНТАЦИЯ API И СИСТЕМА РАЗРЕШЕНИЙ
+============================================
 
 СПИСОК РАЗРЕШЕНИЙ (PERMISSIONS)
 ===============================
 
-БАЗОВЫЕ ПРАВА (добавляются автоматически в РОЛЬ при ее создании для удобства):
+БАЗОВЫЕ ПРАВА (добавляются автоматически в РОЛЬ при ее создании):
 - account_access (1)
 - send_messages (2)
 - edit_messages_self (3) 
@@ -46,115 +60,263 @@ USERS:
 
 ROLES:
 23. change_roles - Изменение ролей пользователей
-24. view_roles - Просмотр списка ролей
 25. create_roles - Создание новых ролей
 26. edit_roles - Редактирование ролей
 27. delete_roles - Удаление ролей
 28. manage_permissions - Управление разрешениями ролей
 
 ADMIN:
-29. admin_panel_access - Доступ к административной панели
+29. admin_panel_access - Доступ к административной панели (НЕ ИСПОЛЬЗУЕТСЯ)
 
-МАППИНГ API ТОЧЕК И РАЗРЕШЕНИЙ
-==============================
+ДЕТАЛЬНАЯ ДОКУМЕНТАЦИЯ API ENDPOINTS
+====================================
+
+ПУБЛИЧНЫЕ ENDPOINTS (без проверки разрешений):
+---------------------------------------------
+- POST /api/auth/login - Вход в систему
+- GET /api/auth/user/:id/public - Получение публичной информации о пользователе (имя, роль)
+- GET /api/channels/ - Получение списка каналов
+- GET /api/messages/channel/:channelId - Получение сообщений канала
+- GET /api/roles/ - Получение списка ролей (ПУБЛИЧНЫЙ ДОСТУП)
+- GET /api/roles/:id - Получение роли по ID (ПУБЛИЧНЫЙ ДОСТУП)
+- GET /api/permissions/ - Получение списка разрешений (ПУБЛИЧНЫЙ ДОСТУП)
 
 AUTH ENDPOINTS (/api/auth/)
 ---------------------------
+
 POST /login
-- НЕ требует разрешений (доступно всем для входа)
-- После входа проверяется наличие account_access - если нет, пользователь заблокирован
+- Описание: Аутентификация пользователя по имени
+- Разрешения: НЕ требует (публичный доступ)
+- Параметры: { username: string }
+- Ответ: { user: User }
+- Примечания: После входа проверяется account_access
+
+GET /user/:id/public
+- Описание: Получение публичной информации о пользователе
+- Разрешения: НЕ требует (публичный доступ)
+- Параметры: id в URL
+- Ответ: { user: { id: string, username: string, role: string } }
+- Примечания: Возвращает только публичные данные без приватной информации
 
 GET /user/:id
-- Требует: view_users_self (если свой профиль) ИЛИ view_users_all (если чужой)
+- Описание: Получение пользователя по ID
+- Разрешения: view_users_self (свой профиль) ИЛИ view_users_all (чужой)
+- Параметры: id в URL
+- Ответ: { user: User }
 
 GET /users
-- Требует: view_users_all
+- Описание: Получение всех пользователей (административная функция)
+- Разрешения: view_users_all
+- Ответ: { users: User[] }
 
 POST /users
-- Требует: create_users
+- Описание: Создание нового пользователя
+- Разрешения: create_users
+- Параметры: { username: string, role?: string, bio?: string }
+- Ответ: { user: User }
 
 PUT /user/:id
-- Для своего профиля: edit_users_self
-- Для чужого профиля: edit_users_all
-- Для изменения роли: change_roles
+- Описание: Обновление пользователя
+- Разрешения: 
+  - Свой профиль: edit_users_self (автоматически разрешено)
+  - Чужой профиль: edit_users_all
+- Параметры: Partial<User>
+- Ответ: { user: User }
+
+PUT /user/:id/role
+- Описание: Изменение роли пользователя
+- Разрешения: change_roles
+- Параметры: { role: string }
+- Ответ: { user: User }
 
 DELETE /user/:id
-- Требует: delete_users
+- Описание: Удаление пользователя
+- Разрешения: delete_users
+- Ответ: { success: boolean }
 
 CHANNELS ENDPOINTS (/api/channels/)
 ----------------------------------
+
 GET /
-- НЕ требует разрешений (публичный доступ)
+- Описание: Получение всех каналов
+- Разрешения: НЕ требует (публичный доступ)
+- Ответ: { channels: Channel[] }
 
 POST /
-- Требует: create_channels
+- Описание: Создание нового канала
+- Разрешения: create_channels
+- Параметры: { name: string, description?: string }
+- Ответ: { channel: Channel }
 
 PUT /:id
-- Для основных полей (name, description): edit_channels_self (если создатель) ИЛИ edit_channels_all
-- Для isPinned: pin_channels
-- Для isReadOnly: close_channels_self (если создатель) ИЛИ close_channels_all
+- Описание: Обновление канала
+- Разрешения:
+  - name, description: edit_channels_self (создатель) ИЛИ edit_channels_all
+  - isPinned: pin_channels
+  - isReadOnly: close_channels_self (создатель) ИЛИ close_channels_all
+- Параметры: Partial<Channel>
+- Ответ: { channel: Channel }
 
 DELETE /:id
-- Требует: delete_channels_self (если создатель) ИЛИ delete_channels_all
+- Описание: Удаление канала
+- Разрешения: delete_channels_self (создатель) ИЛИ delete_channels_all
+- Ответ: { success: boolean }
 
 MESSAGES ENDPOINTS (/api/messages/)
 ----------------------------------
+
 GET /channel/:channelId
-- НЕ требует разрешений (публичный доступ к сообщениям)
+- Описание: Получение сообщений канала
+- Разрешения: НЕ требует (публичный доступ)
+- Параметры: channelId в URL
+- Ответ: { messages: Message[] }
 
 GET /
-- Требует: view_users_all (административная функция)
+- Описание: Получение всех сообщений (административная функция)
+- Разрешения: view_users_all
+- Ответ: { messages: Message[] }
 
 POST /
-- Требует: send_messages
+- Описание: Создание сообщения
+- Разрешения: send_messages
+- Параметры: { channelId: string, content: string }
+- Ответ: { message: Message }
 
 PUT /:id
-- Для content: edit_messages_self (если автор) ИЛИ edit_messages_all
-- Для isPinned: pin_messages
+- Описание: Обновление сообщения
+- Разрешения:
+  - content: edit_messages_self (автор) ИЛИ edit_messages_all
+  - isPinned: pin_messages
+- Параметры: Partial<Message>
+- Ответ: { message: Message }
 
 DELETE /:id
-- Требует: delete_messages_self (если автор) ИЛИ delete_messages_all
+- Описание: Удаление сообщения
+- Разрешения: delete_messages_self (автор) ИЛИ delete_messages_all
+- Ответ: { success: boolean }
 
 ROLES ENDPOINTS (/api/roles/)
 -----------------------------
+
 GET /
-- Требует: view_roles
+- Описание: Получение всех ролей
+- Разрешения: НЕ ТРЕБУЕТ (ПУБЛИЧНЫЙ ДОСТУП)
+- Ответ: { roles: Role[] }
 
 GET /:id
-- Требует: view_roles
+- Описание: Получение роли по ID
+- Разрешения: НЕ ТРЕБУЕТ (ПУБЛИЧНЫЙ ДОСТУП)
+- Параметры: id в URL
+- Ответ: { role: Role }
 
 POST /
-- Требует: create_roles
+- Описание: Создание новой роли
+- Разрешения: create_roles
+- Параметры: { name: string, description?: string, permissions?: string[] }
+- Ответ: { role: Role }
 
 PUT /:id
-- Требует: edit_roles (включает редактирование описания роли И ее разрешений)
+- Описание: Обновление роли (включая разрешения)
+- Разрешения: edit_roles
+- Параметры: { name?: string, description?: string, permissions?: string[] }
+- Ответ: { role: Role }
 
 DELETE /:id
-- Требует: delete_roles (только для custom ролей, default роли защищены)
+- Описание: Удаление роли (только custom роли)
+- Разрешения: delete_roles
+- Ответ: { success: boolean }
 
 GET /user/:userId/permissions
-- Для своих разрешений: view_users_self
-- Для чужих разрешений: view_users_all
+- Описание: Получение разрешений пользователя
+- Разрешения: view_users_self (свои) ИЛИ view_users_all (чужие)
+- Параметры: userId в URL
+- Ответ: { permissions: Permission[] }
 
 GET /user/:userId/role
-- Требует: view_users_all
+- Описание: Получение роли пользователя
+- Разрешения: view_users_all
+- Параметры: userId в URL
+- Ответ: { role: Role }
 
 PERMISSIONS ENDPOINTS (/api/permissions/)
 ----------------------------------------
+
 GET /
-- Требует: view_roles (просмотр списка всех разрешений)
+- Описание: Получение всех разрешений
+- Разрешения: НЕ ТРЕБУЕТ (ПУБЛИЧНЫЙ ДОСТУП)
+- Ответ: { permissions: Permission[] }
 
 POST /
-- Требует: manage_permissions (создание нового разрешения)
+- Описание: Создание нового разрешения
+- Разрешения: manage_permissions
+- Параметры: { name: string, description: string, category: string, isBasic?: boolean }
+- Ответ: { permission: Permission }
 
 PUT /:id
-- Требует: manage_permissions (редактирование ОПИСАНИЯ разрешения, НЕ назначения ролям)
+- Описание: Обновление разрешения
+- Разрешения: manage_permissions
+- Параметры: { name?: string, description?: string, category?: string, isBasic?: boolean }
+- Ответ: { permission: Permission }
 
 DELETE /:id
-- Требует: manage_permissions (удаление разрешения)
+- Описание: Удаление разрешения
+- Разрешения: manage_permissions
+- Ответ: { success: boolean }
 
 GET /check
-- Требует: account_access (проверка наличия определенного разрешения у пользователя)
+- Описание: Проверка наличия разрешения у пользователя
+- Разрешения: account_access
+- Параметры: permission в query (?permission=send_messages)
+- Ответ: { hasPermission: boolean }
+
+КЛИЕНТСКИЙ API (client/src/services/api.ts)
+==========================================
+
+Класс ApiService предоставляет типизированные методы для всех API endpoints:
+
+AUTHENTICATION:
+- setCurrentUser(userId: string) - установка текущего пользователя
+- login(username: string) - вход в систему
+- getUser(id: string) - получение полного профиля пользователя (требует авторизации)
+- getPublicUser(id: string) - получение публичной информации о пользователе (имя, роль)
+- updateUser(id: string, updates: Partial<User>) - обновление пользователя
+
+CHANNELS:
+- getChannels() - получение каналов
+- createChannel(name: string, description?: string) - создание канала
+- updateChannel(id: string, updates: Partial<Channel>) - обновление канала
+- deleteChannel(id: string) - удаление канала
+
+MESSAGES:
+- getMessages() - получение всех сообщений (admin)
+- getMessagesByChannel(channelId: string) - сообщения канала
+- createMessage(channelId: string, content: string) - создание сообщения
+- updateMessage(id: string, updates: Partial<Message>) - обновление сообщения
+- deleteMessage(id: string) - удаление сообщения
+
+ADMIN OPERATIONS:
+- getAllUsers() - все пользователи
+- createUser(userData) - создание пользователя
+- updateUserRole(userId: string, role: string) - смена роли
+- deleteUser(id: string) - удаление пользователя
+
+ROLES & PERMISSIONS:
+- getRoles() - получение ролей
+- createRole(roleData) - создание роли
+- getUserPermissions(userId: string) - разрешения пользователя
+- updateRole(roleId: string, updates) - обновление роли
+- deleteRole(roleId: string) - удаление роли
+- hasPermission(permission: PermissionName) - проверка разрешения
+- getUserRole(userId: string) - роль пользователя
+- getRoleById(roleId: string) - роль по ID
+- getAllPermissions() - все разрешения
+- createPermission(permissionData) - создание разрешения
+- updatePermission(permissionId: string, updates) - обновление разрешения
+- deletePermission(permissionId: string) - удаление разрешения
+
+ЗАГОЛОВКИ И АУТЕНТИФИКАЦИЯ:
+- Content-Type: application/json
+- x-user-id: текущий пользователь (устанавливается через setCurrentUser)
 
 ПРЕДЛАГАЕМЫЕ РОЛИ И ИХ РАЗРЕШЕНИЯ
 ================================

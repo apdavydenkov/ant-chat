@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db } from '../db/mockdb.js';
+import { db } from '../db/mongodb.js';
 import { requireAuth, requirePermission } from '../middleware/auth.js';
 
 // No need for separate function - roles now have type field
@@ -7,7 +7,7 @@ import { requireAuth, requirePermission } from '../middleware/auth.js';
 const router = Router();
 
 // Get all roles
-router.get('/', requireAuth, requirePermission('view_roles'), async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const roles = await db.getAllRoles();
     res.json({ roles });
@@ -18,7 +18,7 @@ router.get('/', requireAuth, requirePermission('view_roles'), async (req, res) =
 });
 
 // Get role by ID
-router.get('/:id', requireAuth, requirePermission('view_roles'), async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const role = await db.getRoleById(req.params.id);
     if (!role) {

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db } from '../db/mockdb.js';
+import { db } from '../db/mongodb.js';
 import { requireAuth, requirePermission } from '../middleware/auth.js';
 
 const router = Router();
@@ -72,6 +72,13 @@ router.post('/', requireAuth, async (req, res) => {
       createdBy: req.userId!, 
       content 
     });
+    
+    // Broadcast new message to all users in the channel via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('message-received', message);
+    }
+    
     res.json({ message });
   } catch (error) {
     console.error('Create message error:', error);
@@ -123,6 +130,12 @@ router.put('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Message not found' });
     }
 
+    // Broadcast message update via WebSocket
+    const io = req.app.get('io');
+    if (io && isPinned !== undefined) {
+      io.emit('message-pinned', { messageId: req.params.id, isPinned });
+    }
+
     res.json({ message });
   } catch (error) {
     console.error('Update message error:', error);
@@ -153,6 +166,12 @@ router.delete('/:id', requireAuth, async (req, res) => {
     
     if (!success) {
       return res.status(404).json({ error: 'Message not found' });
+    }
+
+    // Broadcast message deletion via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('message-deleted', { messageId: req.params.id });
     }
 
     res.json({ success: true });

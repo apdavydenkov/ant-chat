@@ -4,13 +4,11 @@ import { SendOutlined, UserOutlined } from '@ant-design/icons';
 import { useChat } from '../contexts/ChatContext';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
-import LoginModal from './LoginModal';
 
 const MessageInput: React.FC = () => {
-  const { activeChannelId, addMessage, channels } = useChat();
+  const { activeChannelId, addMessage, channels, showLoginModal } = useChat();
   const { user, isAuthenticated } = useAuth();
   const [message, setMessage] = useState('');
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [canSendMessages, setCanSendMessages] = useState(false);
 
   const activeChannel = channels.find(ch => ch.id === activeChannelId);
@@ -96,7 +94,7 @@ const MessageInput: React.FC = () => {
           <Button 
             type="text"
             icon={<UserOutlined />}
-            onClick={() => setLoginModalOpen(true)}
+            onClick={showLoginModal}
             size="small"
           />
         </div>
@@ -149,16 +147,11 @@ const MessageInput: React.FC = () => {
           <Button 
             type="text"
             icon={<UserOutlined />}
-            onClick={() => setLoginModalOpen(true)}
+            onClick={showLoginModal}
             size="small"
           />
         )}
       </div>
-      
-      <LoginModal 
-        open={loginModalOpen}
-        onClose={() => setLoginModalOpen(false)}
-      />
     </div>
   );
 };
