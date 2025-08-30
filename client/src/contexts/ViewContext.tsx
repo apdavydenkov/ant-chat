@@ -40,19 +40,19 @@ export const ViewProvider: React.FC<ViewProviderProps> = ({ children }) => {
   const [previousView, setPreviousView] = useState<ViewType>('channels');
   const [previousViewingUserId, setPreviousViewingUserId] = useState<string | null>(null);
 
-  const saveToHistory = (view: ViewType, userId: string | null) => {
+  const saveToHistory = () => {
     setPreviousView(currentView);
     setPreviousViewingUserId(viewingUserId);
   };
 
   const goToChat = () => {
-    saveToHistory('chat', null);
+    saveToHistory();
     setCurrentView('chat');
     localStorage.setItem('currentView', 'chat');
   };
   
   const goToChannels = () => {
-    saveToHistory('channels', null);
+    saveToHistory();
     setCurrentView('channels');
     localStorage.setItem('currentView', 'channels');
     setViewingUserId(null);
@@ -64,7 +64,7 @@ export const ViewProvider: React.FC<ViewProviderProps> = ({ children }) => {
     console.log('ViewContext: goToProfile called for user', targetUserId);
     
     // ВСЕГДА сохраняем в историю для принудительного обновления
-    saveToHistory('profile', targetUserId);
+    saveToHistory();
     
     setCurrentView('profile');
     localStorage.setItem('currentView', 'profile');
@@ -83,7 +83,7 @@ export const ViewProvider: React.FC<ViewProviderProps> = ({ children }) => {
   };
 
   const goToAdmin = () => {
-    saveToHistory('admin', null);
+    saveToHistory();
     setCurrentView('admin');
     localStorage.setItem('currentView', 'admin');
     setViewingUserId(null);

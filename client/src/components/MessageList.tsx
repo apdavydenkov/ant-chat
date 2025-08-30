@@ -1,5 +1,5 @@
 import React, { useRef, useLayoutEffect, useMemo, useState, useEffect } from 'react';
-import { Typography, Dropdown, message, Spin, Avatar, type MenuProps } from 'antd';
+import { Typography, Dropdown, message, Avatar, type MenuProps } from 'antd';
 import { DeleteOutlined, PushpinOutlined, PushpinFilled, CopyOutlined, UserOutlined } from '@ant-design/icons';
 import { useChat } from '../contexts/ChatContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -97,19 +97,16 @@ const MessageItem = React.memo(({ message, users, userId, onDelete, onPinToggle,
             <div style={{ marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ flexShrink: 0 }}>
                 {userData?.avatar ? (
-                  <div
+                  <img
+                    src={generateAvatarFromConfig(userData.avatar)}
+                    alt="User Avatar"
                     style={{
                       width: 24,
                       height: 24,
                       borderRadius: '50%',
-                      overflow: 'hidden',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: '#f5f5f5',
+                      objectFit: 'cover',
                       border: '1px solid #d9d9d9'
                     }}
-                    dangerouslySetInnerHTML={{ __html: generateAvatarFromConfig(userData.avatar) }}
                   />
                 ) : (
                   <Avatar size={24} icon={<UserOutlined />} />

@@ -158,19 +158,16 @@ const ChatHeader: React.FC = () => {
 								}}
 							>
 								{user?.avatar ? (
-									<div
+									<img
+										src={generateAvatarFromConfig(user.avatar)}
+										alt="Avatar"
 										style={{
 											width: 32,
 											height: 32,
 											borderRadius: '50%',
-											overflow: 'hidden',
-											display: 'flex',
-											alignItems: 'center',
-											justifyContent: 'center',
-											backgroundColor: '#f5f5f5',
+											objectFit: 'cover',
 											border: isAdmin ? '2px solid #faad14' : '1px solid #d9d9d9'
 										}}
-										dangerouslySetInnerHTML={{ __html: generateAvatarFromConfig(user.avatar) }}
 									/>
 								) : (
 									<Avatar 

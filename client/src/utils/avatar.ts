@@ -22,22 +22,22 @@ const avatarStyles = [
   { name: 'micah', style: micah, label: 'Micah' },
   { name: 'personas', style: personas, label: 'Personas' },
   { name: 'shapes', style: shapes, label: 'Shapes' }
-];
+] as const;
 
-export function generateAvatarOptions(userId: string): Array<{ style: string, label: string, svg: string, seed: string }> {
+export function generateAvatarOptions(userId: string): Array<{ style: string, label: string, dataUri: string, seed: string }> {
   const baseSeed = userId + Math.random().toString(36).substring(2, 9);
   
   return avatarStyles.map(({ name, style, label }) => {
     const fullSeed = baseSeed + name;
-    const avatar = createAvatar(style, {
+    const avatar = createAvatar(style as any, {
       seed: fullSeed,
-      size: 64
+      size: 64,
     });
     
     return {
       style: name,
       label,
-      svg: avatar.toString(),
+      dataUri: avatar.toDataUri(),
       seed: fullSeed
     };
   });
@@ -50,12 +50,12 @@ export function generateAvatarFromConfig(config: string): string {
     const { style, seed } = JSON.parse(config);
     const selectedStyle = avatarStyles.find(s => s.name === style)?.style || avataaars;
     
-    const avatar = createAvatar(selectedStyle, {
+    const avatar = createAvatar(selectedStyle as any, {
       seed,
-      size: 64
+      size: 64,
     });
     
-    return avatar.toString();
+    return avatar.toDataUri();
   } catch {
     return '';
   }

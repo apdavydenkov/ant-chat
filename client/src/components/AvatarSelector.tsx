@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Grid, Typography, Button, Space } from 'antd';
+import { Modal, Grid, Typography, Button } from 'antd';
 import { generateAvatarOptions, createAvatarConfig } from '../utils/avatar';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { useBreakpoint } = Grid;
 
 interface AvatarSelectorProps {
@@ -13,7 +13,7 @@ interface AvatarSelectorProps {
 }
 
 const AvatarSelector: React.FC<AvatarSelectorProps> = ({ visible, onClose, onSelect, userId }) => {
-  const [avatarOptions, setAvatarOptions] = useState<Array<{ style: string, label: string, svg: string, seed: string }>>([]);
+  const [avatarOptions, setAvatarOptions] = useState<Array<{ style: string, label: string, dataUri: string, seed: string }>>([]);
   const [selectedOption, setSelectedOption] = useState<{ style: string, seed: string } | null>(null);
   const screens = useBreakpoint();
 
@@ -33,7 +33,7 @@ const AvatarSelector: React.FC<AvatarSelectorProps> = ({ visible, onClose, onSel
     }
   };
 
-  const handleAvatarClick = (option: { style: string, seed: string, svg: string }) => {
+  const handleAvatarClick = (option: { style: string, seed: string, dataUri: string }) => {
     setSelectedOption({ style: option.style, seed: option.seed });
   };
 
@@ -82,20 +82,18 @@ const AvatarSelector: React.FC<AvatarSelectorProps> = ({ visible, onClose, onSel
               backgroundColor: selectedOption?.style === option.style ? '#f0f8ff' : 'white',
             }}
           >
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                margin: '0 auto 8px',
-                borderRadius: '50%',
-                overflow: 'hidden',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: '#f5f5f5',
-              }}
-              dangerouslySetInnerHTML={{ __html: option.svg }}
-            />
+            <div style={{ marginBottom: 8 }}>
+              <img
+                src={option.dataUri}
+                alt={option.label}
+                style={{ 
+                  width: 64, 
+                  height: 64,
+                  borderRadius: '50%',
+                  objectFit: 'cover'
+                }} 
+              />
+            </div>
             <Text strong>{option.label}</Text>
           </div>
         ))}

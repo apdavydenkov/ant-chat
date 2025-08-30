@@ -495,19 +495,16 @@ const ProfileView: React.FC = () => {
         <div style={{ textAlign: 'center', marginBottom: '16px' }}>
           <div style={{ position: 'relative', display: 'inline-block' }}>
             {(selectedAvatar || user.avatar) ? (
-              <div
+              <img
+                src={generateAvatarFromConfig(selectedAvatar || user.avatar || '')}
+                alt="Profile Avatar"
                 style={{
                   width: 60,
                   height: 60,
                   borderRadius: '50%',
-                  overflow: 'hidden',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#f5f5f5',
+                  objectFit: 'cover',
                   border: '2px solid #d9d9d9'
                 }}
-                dangerouslySetInnerHTML={{ __html: generateAvatarFromConfig(selectedAvatar || user.avatar || '') }}
               />
             ) : (
               <Avatar size={60} icon={<UserOutlined />} />
