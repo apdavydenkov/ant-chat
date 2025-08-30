@@ -266,9 +266,31 @@ class MongoDB {
     return await MessageModel.find({}).lean<Message[]>();
   }
 
-  async getMessagesByChannelId(channelId: string): Promise<Message[]> {
+  async getMessagesByChannelId(channelId: string, limit?: number, offset?: number): Promise<Message[]> {
     this.ensureConnected();
-    return await MessageModel.find({ channelId }).lean<Message[]>();
+    let query = MessageModel.find({ channelId }).sort({ createdAt: -1 });
+    
+    if (limit !== undefined) {
+      query = query.limit(limit);
+    }
+    if (offset !== undefined) {
+      query = query.skip(offset);
+    }
+    
+    const messages = await query.lean<Message[]>();
+    return messages.reverse(); // Return in chronological order
+  }
+
+  async getMessageCountByChannelId(channelId: string): Promise<number> {
+    this.ensureConnected();
+    return await MessageModel.countDocuments({ channelId });
+  }
+
+  async getUsersByIds(userIds: string[]): Promise<User[]> {
+    this.ensureConnected();
+    return await UserModel.find({ 
+      id: { $in: userIds } 
+    }).select('id firstName lastName avatar').lean<User[]>();
   }
 
   async createMessage(messageData: Partial<Message>): Promise<Message> {

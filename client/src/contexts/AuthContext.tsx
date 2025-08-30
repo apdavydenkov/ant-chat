@@ -22,11 +22,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Восстановление пользователя из localStorage при загрузке
   useEffect(() => {
+    // Очищаем все остатки кэша профилей
+    Object.keys(localStorage)
+      .filter(key => key.startsWith('profile_'))
+      .forEach(key => localStorage.removeItem(key));
+      
     const savedToken = localStorage.getItem('authToken');
     if (savedToken) {
       try {
         apiService.setAuthToken(savedToken);
-        // Проверяем актуальный статус пользователя на сервере
+        // Принудительно запрашиваем свежие данные пользователя с сервера
         apiService.getCurrentUser().then(({ user: serverUser }) => {
           setUser(serverUser);
           socketService.connect();
@@ -57,7 +62,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const updateUser = (updatedUser: User) => {
     setUser(updatedUser);
-    localStorage.setItem('chatUser', JSON.stringify(updatedUser));
   };
 
   const logout = () => {

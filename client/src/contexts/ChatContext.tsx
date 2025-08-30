@@ -4,16 +4,10 @@ import { apiService } from '../services/api';
 import { socketService } from '../services/socket';
 import { useAuth } from './AuthContext';
 
-interface UserInfo {
-  id: string;
-  role: string;
-  firstname?: string;
-  lastname?: string;
-}
-
 interface ChatContextType {
   channels: Channel[];
-  messages: Message[];
+  messages: Record<string, Message[]>;
+  users: Record<string, User>;
   activeChannelId: string | null;
   isServerConnected: boolean;
   connectionError: string | null;
@@ -22,13 +16,13 @@ interface ChatContextType {
   updateChannel: (channelId: string, updates: { name?: string; isPinned?: boolean; isReadOnly?: boolean; description?: string }) => Promise<void>;
   deleteChannel: (channelId: string) => Promise<void>;
   setActiveChannel: (channelId: string | null) => void;
+  setMessagesForChannel: (channelId: string, messages: Message[]) => void;
   addMessage: (channelId: string, content: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   pinMessage: (messageId: string) => Promise<void>;
   unpinMessage: (messageId: string) => Promise<void>;
   pinChannel: (channelId: string) => Promise<void>;
   unpinChannel: (channelId: string) => Promise<void>;
-  getUserInfo: (userId: string) => Promise<UserInfo | null>;
   showLoginModal: () => void;
   loginModalVisible: boolean;
   setLoginModalVisible: (visible: boolean) => void;
@@ -52,27 +46,77 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const { user } = useAuth();
   
   const [channels, setChannels] = useState<Channel[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Record<string, Message[]>>({});
+  const [users, setUsers] = useState<Record<string, User>>({});
   const [activeChannelId, setActiveChannelId] = useState<string | null>(() => {
-    return localStorage.getItem('activeChannelId') || null;
+    try {
+      return localStorage.getItem('activeChannelId') || null;
+    } catch {
+      return null;
+    }
   });
   const [isServerConnected, setIsServerConnected] = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [loginModalVisible, setLoginModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Кэширование
+  const getMessagesCacheKey = (channelId: string) => `chat_messages_${channelId}`;
+  const USERS_CACHE_KEY = 'chat_users';
+  const CACHE_TTL = 24 * 60 * 60 * 1000; // 1 день
+
+  const loadMessagesFromCache = (channelId: string): Message[] => {
+    try {
+      const cached = localStorage.getItem(getMessagesCacheKey(channelId));
+      if (cached) {
+        const data = JSON.parse(cached);
+        if (Date.now() - data.timestamp < CACHE_TTL) {
+          return data.messages || [];
+        } else {
+          localStorage.removeItem(getMessagesCacheKey(channelId));
+        }
+      }
+    } catch {}
+    return [];
+  };
+
+  const loadUsersFromCache = (): Record<string, User> => {
+    try {
+      const cached = localStorage.getItem(USERS_CACHE_KEY);
+      if (cached) {
+        const data = JSON.parse(cached);
+        if (Date.now() - data.timestamp < CACHE_TTL) {
+          return data.users || {};
+        } else {
+          localStorage.removeItem(USERS_CACHE_KEY);
+        }
+      }
+    } catch {}
+    return {};
+  };
+
+  const saveMessagesToCache = (channelId: string, channelMessages: Message[]) => {
+    try {
+      const data = {
+        messages: channelMessages,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(getMessagesCacheKey(channelId), JSON.stringify(data));
+    } catch {}
+  };
+
+  const saveUsersToCache = (updatedUsers: Record<string, User>) => {
+    try {
+      const data = {
+        users: updatedUsers,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(USERS_CACHE_KEY, JSON.stringify(data));
+    } catch {}
+  };
+
   const showLoginModal = useCallback(() => {
     setLoginModalVisible(true);
-  }, []);
-
-  const getUserInfo = useCallback(async (userId: string): Promise<UserInfo | null> => {
-    try {
-      const { user: userData } = await apiService.getPublicUser(userId);
-      return userData;
-    } catch (error) {
-      console.error('Error loading user info:', userId, error);
-      return null;
-    }
   }, []);
 
   const loadChannels = useCallback(async () => {
@@ -83,7 +127,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       setIsServerConnected(true);
       setConnectionError(null);
     } catch (error) {
-      console.error('Failed to load channels:', error);
       setIsServerConnected(false);
       setConnectionError('Нет соединения с сервером. Работаем в офлайн режиме.');
     } finally {
@@ -93,17 +136,32 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   const setupWebSocketListeners = useCallback(() => {
     socketService.onMessageReceived((message) => {
-      setMessages(prev => [...prev, message]);
+      setMessages(prev => {
+        const channelMsgs = [...(prev[message.channelId] || []), message];
+        return { ...prev, [message.channelId]: channelMsgs };
+      });
     });
 
     socketService.onMessageDeleted(({ messageId }) => {
-      setMessages(prev => prev.filter(m => m.id !== messageId));
+      setMessages(prev => {
+        const newMessages = { ...prev };
+        Object.keys(newMessages).forEach(channelId => {
+          newMessages[channelId] = newMessages[channelId].filter(m => m.id !== messageId);
+        });
+        return newMessages;
+      });
     });
 
     socketService.onMessagePinned(({ messageId, isPinned }) => {
-      setMessages(prev => prev.map(m => 
-        m.id === messageId ? { ...m, isPinned } : m
-      ));
+      setMessages(prev => {
+        const newMessages = { ...prev };
+        Object.keys(newMessages).forEach(channelId => {
+          newMessages[channelId] = newMessages[channelId].map(m => 
+            m.id === messageId ? { ...m, isPinned } : m
+          );
+        });
+        return newMessages;
+      });
     });
 
     socketService.onChannelCreated((channel) => {
@@ -112,7 +170,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     socketService.onChannelDeleted(({ channelId }) => {
       setChannels(prev => prev.filter(c => c.id !== channelId));
-      setMessages(prev => prev.filter(m => m.channelId !== channelId));
+      setMessages(prev => {
+        const { [channelId]: _, ...rest } = prev;
+        return rest;
+      });
+      try {
+        localStorage.removeItem(getMessagesCacheKey(channelId));
+      } catch {}
       if (activeChannelId === channelId) {
         setActiveChannelId(null);
       }
@@ -123,86 +187,88 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         c.id === updatedChannel.id ? updatedChannel : c
       ));
     });
+
+    socketService.onUserUpdated((updatedUser) => {
+      // Обновляем пользователя в кэше сообщений
+      setUsers(prev => {
+        const updated = { ...prev, [updatedUser.id]: updatedUser };
+        saveUsersToCache(updated);
+        return updated;
+      });
+    });
   }, [activeChannelId]);
 
   const createChannel = useCallback(async (name: string, description?: string) => {
     try {
       const { channel } = await apiService.createChannel(name, description);
-      // Channel will be added via WebSocket broadcast, no need to add locally
       if (!isServerConnected) {
         setChannels(prev => [...prev, channel]);
       }
-    } catch (error) {
-      console.error('Failed to create channel:', error);
-    }
+    } catch {}
   }, [isServerConnected]);
 
   const updateChannel = useCallback(async (channelId: string, updates: { name?: string; isPinned?: boolean; isReadOnly?: boolean; description?: string }) => {
     try {
       const { channel } = await apiService.updateChannel(channelId, updates);
       setChannels(prev => prev.map(ch => ch.id === channelId ? channel : ch));
-    } catch (error) {
-      console.error('Failed to update channel:', error);
-    }
+    } catch {}
   }, []);
 
   const deleteChannel = useCallback(async (channelId: string) => {
     try {
       await apiService.deleteChannel(channelId);
-      // Channel deletion will be handled via WebSocket broadcast
       if (!isServerConnected) {
-        setChannels(prev => prev.filter(channel => channel.id !== channelId));
-        setMessages(prev => prev.filter(message => message.channelId !== channelId));
+        setChannels(prev => prev.filter(ch => ch.id !== channelId));
+        setMessages(prev => {
+          const { [channelId]: _, ...rest } = prev;
+          return rest;
+        });
         if (activeChannelId === channelId) {
           setActiveChannelId(null);
         }
       }
-    } catch (error) {
-      console.error('Failed to delete channel:', error);
-    }
+    } catch {}
   }, [activeChannelId, isServerConnected]);
 
-  const loadChannelMessages = useCallback(async (channelId: string) => {
-    try {
-      setIsLoading(true);
-      const { messages } = await apiService.getMessagesByChannel(channelId);
-      setMessages(messages);
-    } catch (error) {
-      console.error('Failed to load messages for channel:', channelId, error);
-    } finally {
-      setIsLoading(false);
-    }
+  const setActiveChannel = useCallback((channelId: string | null) => {
+    setActiveChannelId(prevId => {
+      if (prevId) {
+        try {
+          socketService.leaveChannel(prevId);
+        } catch {}
+      }
+      
+      if (channelId) {
+        try {
+          localStorage.setItem('activeChannelId', channelId);
+          socketService.joinChannel(channelId);
+        } catch {}
+      } else {
+        try {
+          localStorage.removeItem('activeChannelId');
+        } catch {}
+      }
+      
+      return channelId;
+    });
   }, []);
 
-  const setActiveChannel = useCallback((channelId: string | null) => {
-    if (activeChannelId) {
-      socketService.leaveChannel(activeChannelId);
-    }
-    
-    setActiveChannelId(channelId);
-    
-    if (channelId) {
-      localStorage.setItem('activeChannelId', channelId);
-      socketService.joinChannel(channelId);
-      loadChannelMessages(channelId);
-    } else {
-      localStorage.removeItem('activeChannelId');
-      setMessages([]);
-    }
-  }, [activeChannelId, loadChannelMessages]);
+  const setMessagesForChannel = useCallback((channelId: string, newMessages: Message[]) => {
+    setMessages(prev => ({ ...prev, [channelId]: newMessages }));
+  }, []);
 
   const addMessage = async (channelId: string, content: string) => {
     if (!user?.id) return;
 
     try {
       const { message } = await apiService.createMessage(channelId, content);
-      // Message will be added via WebSocket broadcast, no need to add locally
-      // Only add if WebSocket is not connected
       if (!isServerConnected) {
-        setMessages(prev => [...prev, message]);
+        setMessages(prev => {
+          const channelMsgs = [...(prev[channelId] || []), message];
+          return { ...prev, [channelId]: channelMsgs };
+        });
       }
     } catch (error) {
-      console.error('Failed to send message:', error);
       throw error;
     }
   };
@@ -210,77 +276,125 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const deleteMessage = async (messageId: string) => {
     try {
       await apiService.deleteMessage(messageId);
-      // Message deletion will be handled via WebSocket broadcast
       if (!isServerConnected) {
-        setMessages(prev => prev.filter(message => message.id !== messageId));
+        setMessages(prev => {
+          const newMessages = { ...prev };
+          Object.keys(newMessages).forEach(channelId => {
+            newMessages[channelId] = newMessages[channelId].filter(m => m.id !== messageId);
+          });
+          return newMessages;
+        });
       }
-    } catch (error) {
-      console.error('Failed to delete message:', error);
-    }
+    } catch {}
   };
 
   const pinMessage = async (messageId: string) => {
     try {
       await apiService.updateMessage(messageId, { isPinned: true });
-      // Message pin status will be updated via WebSocket broadcast
       if (!isServerConnected) {
-        setMessages(prev => prev.map(message => 
-          message.id === messageId ? { ...message, isPinned: true } : message
-        ));
+        setMessages(prev => {
+          const newMessages = { ...prev };
+          Object.keys(newMessages).forEach(channelId => {
+            newMessages[channelId] = newMessages[channelId].map(m => 
+              m.id === messageId ? { ...m, isPinned: true } : m
+            );
+          });
+          return newMessages;
+        });
       }
-    } catch (error) {
-      console.error('Failed to pin message:', error);
-    }
+    } catch {}
   };
 
   const unpinMessage = async (messageId: string) => {
     try {
       await apiService.updateMessage(messageId, { isPinned: false });
-      // Message pin status will be updated via WebSocket broadcast
       if (!isServerConnected) {
-        setMessages(prev => prev.map(message => 
-          message.id === messageId ? { ...message, isPinned: false } : message
-        ));
+        setMessages(prev => {
+          const newMessages = { ...prev };
+          Object.keys(newMessages).forEach(channelId => {
+            newMessages[channelId] = newMessages[channelId].map(m => 
+              m.id === messageId ? { ...m, isPinned: false } : m
+            );
+          });
+          return newMessages;
+        });
       }
-    } catch (error) {
-      console.error('Failed to unpin message:', error);
-    }
+    } catch {}
   };
 
-  const pinChannel = async (channelId: string) => {
+  const toggleChannelPin = useCallback(async (channelId: string, isPinned: boolean) => {
     try {
       const currentChannel = channels.find(ch => ch.id === channelId);
+      if (!currentChannel) return;
       const { channel } = await apiService.updateChannel(channelId, { 
-        isPinned: true,
-        name: currentChannel?.name,
-        description: currentChannel?.description
+        isPinned,
+        name: currentChannel.name,
+        description: currentChannel.description
       });
       setChannels(prev => prev.map(ch => 
         ch.id === channelId ? channel : ch
       ));
-    } catch (error) {
-      console.error('Failed to pin channel:', error);
-    }
-  };
+    } catch {}
+  }, [channels]);
 
-  const unpinChannel = async (channelId: string) => {
-    try {
-      const currentChannel = channels.find(ch => ch.id === channelId);
-      const { channel } = await apiService.updateChannel(channelId, { 
-        isPinned: false,
-        name: currentChannel?.name,
-        description: currentChannel?.description
-      });
-      setChannels(prev => prev.map(ch => 
-        ch.id === channelId ? channel : ch
-      ));
-    } catch (error) {
-      console.error('Failed to unpin channel:', error);
+  const pinChannel = (channelId: string) => toggleChannelPin(channelId, true);
+  const unpinChannel = (channelId: string) => toggleChannelPin(channelId, false);
+
+  // Загрузка сообщений с кэшированием
+  useEffect(() => {
+    if (!activeChannelId) {
+      return;
     }
-  };
+
+    let cancelled = false;
+    
+    // Загружаем users глобально из кэша один раз
+    if (Object.keys(users).length === 0) {
+      const cachedUsers = loadUsersFromCache();
+      if (Object.keys(cachedUsers).length > 0) {
+        setUsers(cachedUsers);
+      }
+    }
+
+    // Загружаем messages для channel из кэша
+    const cachedMessages = loadMessagesFromCache(activeChannelId);
+    if (cachedMessages.length > 0) {
+      setMessagesForChannel(activeChannelId, cachedMessages);
+    } else {
+      setIsLoading(true);
+    }
+
+    const loadMessagesForChannel = async (channelId: string) => {
+      try {
+        if (cancelled) return;
+        
+        const { messages: channelMessages, users: channelUsers } = await apiService.getMessagesByChannel(channelId, 50, 0);
+        
+        if (cancelled) return;
+        
+        setMessagesForChannel(channelId, channelMessages);
+        setUsers(prev => {
+          const updated = { ...prev, ...channelUsers };
+          saveUsersToCache(updated);
+          return updated;
+        });
+        saveMessagesToCache(channelId, channelMessages);
+        
+      } catch {} finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadMessagesForChannel(activeChannelId);
+    
+    return () => {
+      cancelled = true;
+    };
+  }, [activeChannelId, setMessagesForChannel]);
 
   useEffect(() => {
-    // Initialize WebSocket connection
     socketService.connect();
     
     loadChannels();
@@ -290,26 +404,20 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       socketService.removeAllListeners();
       socketService.disconnect();
     };
-  }, []);
+  }, [loadChannels, setupWebSocketListeners]);
 
   useEffect(() => {
-    if (channels.length > 0) {
-      if (!activeChannelId) {
-        // Если нет активного канала, выбираем первый
-        setActiveChannel(channels[0].id);
-      } else if (channels.some(ch => ch.id === activeChannelId)) {
-        // Если есть сохранённый активный канал и он существует, загружаем его сообщения
-        loadChannelMessages(activeChannelId);
-      } else {
-        // Если сохранённый канал не найден, выбираем первый доступный
-        setActiveChannel(channels[0].id);
-      }
+    if (channels.length > 0 && !activeChannelId) {
+      setActiveChannel(channels[0].id);
+    } else if (channels.length > 0 && !channels.some(ch => ch.id === activeChannelId)) {
+      setActiveChannel(channels[0].id);
     }
-  }, [channels, activeChannelId, setActiveChannel, loadChannelMessages]);
+  }, [channels, activeChannelId, setActiveChannel]);
 
   const value: ChatContextType = {
     channels,
     messages,
+    users,
     activeChannelId,
     isServerConnected,
     connectionError,
@@ -318,13 +426,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     updateChannel,
     deleteChannel,
     setActiveChannel,
+    setMessagesForChannel,
     addMessage,
     deleteMessage,
     pinMessage,
     unpinMessage,
     pinChannel,
     unpinChannel,
-    getUserInfo,
     showLoginModal,
     loginModalVisible,
     setLoginModalVisible,

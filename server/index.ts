@@ -96,6 +96,12 @@ io.on('connection', (socket) => {
     console.log(`🗑️ Channel deletion broadcast:`, data.channelId);
   });
 
+  // Handle user updates broadcasting
+  socket.on('user-updated', (user) => {
+    socket.broadcast.emit('user-updated', user);
+    console.log(`👤 User update broadcast:`, user.id);
+  });
+
   socket.on('disconnect', () => {
     console.log('👋 User disconnected:', socket.id);
   });

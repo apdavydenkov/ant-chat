@@ -4,16 +4,20 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 
 class ApiService {
+  private permissionsCache: Record<string, boolean> = {};
+  
   setAuthToken(token: string | null) {
     if (token) {
       localStorage.setItem('authToken', token);
     } else {
       localStorage.removeItem('authToken');
+      this.permissionsCache = {};
     }
   }
 
   clearAuth() {
     localStorage.removeItem('authToken');
+    this.permissionsCache = {};
   }
 
   private getAuthToken(): string | null {
@@ -42,8 +46,7 @@ class ApiService {
       if (response.status === 401) {
         // Unauthorized - clear auth completely
         this.clearAuth();
-        // Force page reload to trigger auth redirect
-        window.location.reload();
+        // НЕ перезагружаем страницу - пусть приложение само обработает отсутствие токена
         throw new Error('Session expired. Please login again.');
       }
       const error = await response.json().catch(() => ({ error: 'API request failed' }));
@@ -66,10 +69,11 @@ class ApiService {
   }
 
   async getUser(id: string): Promise<{ user: User }> {
+    // ВСЕГДА запрашиваем с сервера - никакого кэширования
     return this.request(`/auth/user/${id}`);
   }
 
-  async getPublicUser(id: string): Promise<{ user: { id: string; role: string; firstName?: string; lastName?: string } }> {
+  async getPublicUser(id: string): Promise<{ user: { id: string; role: string; firstName?: string; lastName?: string; avatar?: string } }> {
     return this.request(`/auth/user/${id}/public`);
   }
 
@@ -110,8 +114,20 @@ class ApiService {
     return this.request('/messages');
   }
 
-  async getMessagesByChannel(channelId: string): Promise<{ messages: Message[] }> {
-    return this.request(`/messages/channel/${channelId}`);
+  async getMessagesByChannel(channelId: string, limit?: number, offset?: number): Promise<{ 
+    messages: Message[]; 
+    users: Record<string, { id: string; firstName?: string; lastName?: string; avatar?: string }>;
+    hasMore: boolean;
+    total: number;
+  }> {
+    const params = new URLSearchParams();
+    if (limit !== undefined) params.append('limit', limit.toString());
+    if (offset !== undefined) params.append('offset', offset.toString());
+    
+    const queryString = params.toString();
+    const endpoint = `/messages/channel/${channelId}${queryString ? `?${queryString}` : ''}`;
+    
+    return this.request(endpoint);
   }
 
   async createMessage(channelId: string, content: string): Promise<{ message: Message }> {
@@ -147,10 +163,15 @@ class ApiService {
   }
 
   async updateUserRole(userId: string, role: string): Promise<{ user: User }> {
-    return this.request(`/auth/user/${userId}/role`, {
+    const response = await this.request(`/auth/user/${userId}/role`, {
       method: 'PUT',
       body: JSON.stringify({ role }),
     });
+    
+    // Очищаем кэш разрешений если это текущий пользователь  
+    this.permissionsCache = {};
+    
+    return response;
   }
 
   async deleteUser(id: string): Promise<{ success: boolean }> {
@@ -189,9 +210,18 @@ class ApiService {
     });
   }
 
-  async hasPermission(permission: PermissionName): Promise<boolean> {
+  async hasPermission(permission: PermissionName, useCache: boolean = true): Promise<boolean> {
+    // Проверяем кэш
+    if (useCache && permission in this.permissionsCache) {
+      return this.permissionsCache[permission];
+    }
+    
     try {
       const response = await this.request<{ hasPermission: boolean }>(`/permissions/check?permission=${permission}`);
+      // Кэшируем результат
+      if (useCache) {
+        this.permissionsCache[permission] = response.hasPermission;
+      }
       return response.hasPermission;
     } catch {
       return false;

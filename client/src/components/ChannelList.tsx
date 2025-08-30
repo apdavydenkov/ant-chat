@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { List, Modal, Input, Typography, Dropdown, type MenuProps, message } from 'antd';
 import { DeleteOutlined, PushpinOutlined, PushpinFilled, EditOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons';
 import { useChat } from '../contexts/ChatContext';
@@ -98,10 +98,9 @@ const ChannelList: React.FC = () => {
   };
 
   const getLastMessage = (channelId: string) => {
-    const channelMessages = messages
-      .filter(msg => msg.channelId === channelId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return channelMessages[0];
+    const channelMessages = messages[channelId] || [];
+    return channelMessages
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
   };
 
   const formatLastMessageTime = (timestamp: string | Date) => {
@@ -159,11 +158,11 @@ const ChannelList: React.FC = () => {
     return items;
   };
 
-  const sortedChannels = [...channels].sort((a, b) => {
+  const sortedChannels = useMemo(() => [...channels].sort((a, b) => {
     if (a.isPinned && !b.isPinned) return -1;
     if (!a.isPinned && b.isPinned) return 1;
     return (a.name || '').localeCompare(b.name || '');
-  });
+  }), [channels]);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -192,6 +191,7 @@ const ChannelList: React.FC = () => {
                 disabled={!permissions.canPinChannels && !permissions.canDeleteChannels}
               >
                 <List.Item
+                  key={channel.id}
                   style={{
                     cursor: 'pointer',
                     backgroundColor: activeChannelId === channel.id ? '#e6f4ff' : 'transparent',
@@ -257,41 +257,41 @@ const ChannelList: React.FC = () => {
         )}
       </div>
 
-	<Modal
-	  title="Редактировать канал"
-	  open={!!editingChannel}
-	  onOk={handleEditSubmit}
-	  onCancel={handleEditCancel}
-	  okText="Сохранить"
-	  cancelText="Отмена"
-	  closable={false}
-	  width={400}
-	  styles={{
-		footer: {
-		  marginTop: '24px'
-	  }
-	}}
-	>
-	  <div style={{ marginBottom: '16px' }}>
-		<Paragraph style={{ marginBottom: '8px' }}>Название канала</Paragraph>
-		<Input
-		  placeholder="Введите название канала"
-		  value={editingChannel?.name || ''}
-		  onChange={(e) => setEditingChannel(prev => prev ? { ...prev, name: e.target.value } : null)}
-		  onPressEnter={handleEditSubmit}
-		  style={{ marginBottom: '16px' }}
-		/>
-		<Paragraph style={{ marginBottom: '8px' }}>Описание канала</Paragraph>
-		<Input.TextArea
-		  placeholder="Введите описание канала (необязательно)"
-		  value={editingChannel?.description || ''}
-		  onChange={(e) => setEditingChannel(prev => prev ? { ...prev, description: e.target.value } : null)}
-		  maxLength={50}
-		  showCount
-		  rows={3}
-		/>
-	  </div>
-	</Modal>
+      <Modal
+        title="Редактировать канал"
+        open={!!editingChannel}
+        onOk={handleEditSubmit}
+        onCancel={handleEditCancel}
+        okText="Сохранить"
+        cancelText="Отмена"
+        closable={false}
+        width={400}
+        styles={{
+          footer: {
+            marginTop: '24px'
+          }
+        }}
+      >
+        <div style={{ marginBottom: '16px' }}>
+          <Paragraph style={{ marginBottom: '8px' }}>Название канала</Paragraph>
+          <Input
+            placeholder="Введите название канала"
+            value={editingChannel?.name || ''}
+            onChange={(e) => setEditingChannel(prev => prev ? { ...prev, name: e.target.value } : null)}
+            onPressEnter={handleEditSubmit}
+            style={{ marginBottom: '16px' }}
+          />
+          <Paragraph style={{ marginBottom: '8px' }}>Описание канала</Paragraph>
+          <Input.TextArea
+            placeholder="Введите описание канала (необязательно)"
+            value={editingChannel?.description || ''}
+            onChange={(e) => setEditingChannel(prev => prev ? { ...prev, description: e.target.value } : null)}
+            maxLength={50}
+            showCount
+            rows={3}
+          />
+        </div>
+      </Modal>
     </div>
   );
 };

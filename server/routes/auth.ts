@@ -89,7 +89,8 @@ router.get('/user/:id/public', async (req, res) => {
       id: user.id,
       role: user.role,
       firstName: user.firstName,
-      lastName: user.lastName
+      lastName: user.lastName,
+      avatar: user.avatar
     };
     
     res.json({ user: publicUserInfo });
@@ -193,8 +194,8 @@ router.put('/user/:id', requireAuth, async (req, res) => {
     }
     
     if (avatar !== undefined) {
-      if (typeof avatar !== 'string' || avatar.length > 200) {
-        return res.status(400).json({ error: 'Avatar must be a string with max 200 characters' });
+      if (typeof avatar !== 'string' || avatar.length > 500) {
+        return res.status(400).json({ error: 'Avatar must be a string with max 500 characters' });
       }
       updateData.avatar = avatar;
     }
@@ -217,6 +218,13 @@ router.put('/user/:id', requireAuth, async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+    
+    // Отправляем WebSocket уведомление о обновлении пользователя
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user-updated', user);
+    }
+    
     res.json({ user });
   } catch (error) {
     console.error('Update user error:', error);
@@ -252,6 +260,13 @@ router.put('/user/:id/role', requireAuth, requirePermission('change_roles'), asy
     }
     
     const user = await db.updateUser(targetUserId, { role });
+    
+    // Отправляем WebSocket уведомление о смене роли
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user-updated', user);
+    }
+    
     res.json({ user });
   } catch (error) {
     console.error('Update user role error:', error);

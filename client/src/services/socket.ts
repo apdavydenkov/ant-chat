@@ -62,6 +62,10 @@ class SocketService {
     this.socket?.on('channel-updated', callback);
   }
   
+  onUserUpdated(callback: (data: any) => void) {
+    this.socket?.on('user-updated', callback);
+  }
+  
   removeAllListeners() {
     this.socket?.removeAllListeners();
   }

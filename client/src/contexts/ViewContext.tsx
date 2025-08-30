@@ -60,15 +60,21 @@ export const ViewProvider: React.FC<ViewProviderProps> = ({ children }) => {
   };
   
   const goToProfile = (userId?: string) => {
-    // Не сохраняем в историю если переходим на тот же профиль
     const targetUserId = userId || null;
-    if (!(currentView === 'profile' && viewingUserId === targetUserId)) {
-      saveToHistory('profile', targetUserId);
-    }
+    console.log('ViewContext: goToProfile called for user', targetUserId);
+    
+    // ВСЕГДА сохраняем в историю для принудительного обновления
+    saveToHistory('profile', targetUserId);
     
     setCurrentView('profile');
     localStorage.setItem('currentView', 'profile');
-    setViewingUserId(targetUserId);
+    
+    // Принудительно обновляем viewingUserId даже если он тот же
+    setViewingUserId(null); // сначала очищаем
+    setTimeout(() => {
+      setViewingUserId(targetUserId); // потом устанавливаем
+    }, 0);
+    
     if (targetUserId) {
       localStorage.setItem('viewingUserId', targetUserId);
     } else {

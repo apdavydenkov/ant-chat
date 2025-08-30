@@ -4,6 +4,7 @@ import { UserOutlined, LogoutOutlined, ArrowLeftOutlined, SettingOutlined, Disco
 import { useAuth } from '../contexts/AuthContext';
 import { useView } from '../contexts/ViewContext';
 import { useChat } from '../contexts/ChatContext';
+import { generateAvatarFromConfig } from '../utils/avatar';
 import { apiService } from '../services/api';
 
 const { Header } = Layout;
@@ -146,16 +147,40 @@ const ChatHeader: React.FC = () => {
 					)}
 					{isAuthenticated && user ? (
 						<Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-							<Button type="text" size="small">
-								<Space size="small">
+							<Button 
+								type="text" 
+								size="small"
+								style={{ 
+									display: 'flex', 
+									alignItems: 'center', 
+									height: 'auto',
+									padding: '4px'
+								}}
+							>
+								{user?.avatar ? (
+									<div
+										style={{
+											width: 32,
+											height: 32,
+											borderRadius: '50%',
+											overflow: 'hidden',
+											display: 'flex',
+											alignItems: 'center',
+											justifyContent: 'center',
+											backgroundColor: '#f5f5f5',
+											border: isAdmin ? '2px solid #faad14' : '1px solid #d9d9d9'
+										}}
+										dangerouslySetInnerHTML={{ __html: generateAvatarFromConfig(user.avatar) }}
+									/>
+								) : (
 									<Avatar 
-										size={24} 
+										size={32} 
 										icon={<UserOutlined />} 
 										style={isAdmin ? {
 											border: '2px solid #faad14'
 										} : {}}
 									/>
-								</Space>
+								)}
 							</Button>
 						</Dropdown>
 					) : (

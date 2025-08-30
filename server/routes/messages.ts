@@ -4,7 +4,7 @@ import { requireAuth, requirePermission } from '../middleware/auth.js';
 
 const router = Router();
 
-// Get messages by channel
+// Get messages by channel with user data
 router.get('/channel/:channelId', async (req, res) => {
   try {
     // Check if channel exists
@@ -13,8 +13,40 @@ router.get('/channel/:channelId', async (req, res) => {
       return res.status(404).json({ error: 'Channel not found' });
     }
     
-    const messages = await db.getMessagesByChannelId(req.params.channelId);
-    res.json({ messages });
+    // Parse pagination parameters
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const offset = parseInt(req.query.offset as string) || 0;
+    
+    // Get messages
+    const messages = await db.getMessagesByChannelId(req.params.channelId, limit, offset);
+    
+    // Get unique user IDs from messages
+    const userIds = [...new Set(messages.map(msg => msg.createdBy).filter(id => id !== 'system'))];
+    
+    // Get user data for all authors
+    const users = {};
+    if (userIds.length > 0) {
+      const userData = await db.getUsersByIds(userIds);
+      userData.forEach(user => {
+        users[user.id] = {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          avatar: user.avatar
+        };
+      });
+    }
+    
+    // Get total count for pagination
+    const total = await db.getMessageCountByChannelId(req.params.channelId);
+    const hasMore = offset + limit < total;
+    
+    res.json({ 
+      messages, 
+      users, 
+      hasMore, 
+      total 
+    });
   } catch (error) {
     console.error('Get messages error:', error);
     res.status(500).json({ error: 'Internal server error' });

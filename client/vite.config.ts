@@ -5,11 +5,21 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: parseInt(process.env.VITE_CLIENT_PORT),
+    port: parseInt(process.env.VITE_CLIENT_PORT || '5173'),
     hmr: {
       host: 'app.local.wddt.ru',
       protocol: 'wss',
-      path: '/tunnel-ws'
+      path: '/tunnel-ws',
+      // Отключаем авто-перезагрузку при ошибках HMR
+      overlay: false,
+      // Уменьшаем частоту проверок
+      timeout: 60000
+    }
+  },
+  // Отключаем HMR в production-подобном режиме
+  build: {
+    rollupOptions: {
+      onwarn: () => {} // скрываем warning'ы
     }
   }
 })

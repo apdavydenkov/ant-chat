@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Avatar, Typography, Space, Button, Divider, Tag, Form, Input, message, List, Spin, Select, Popover } from 'antd';
-import { UserOutlined, CrownOutlined, EditOutlined, SaveOutlined, CloseOutlined, LogoutOutlined, StopOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { UserOutlined, CrownOutlined, EditOutlined, SaveOutlined, CloseOutlined, LogoutOutlined, StopOutlined, InfoCircleOutlined, CameraOutlined } from '@ant-design/icons';
+import AvatarSelector from './AvatarSelector';
 import { useAuth } from '../contexts/AuthContext';
 import { useView } from '../contexts/ViewContext';
 import { apiService } from '../services/api';
+import { socketService } from '../services/socket';
+import { generateAvatarFromConfig } from '../utils/avatar';
 import type { User, Role, Permission } from '../types';
 
 const { Title, Text } = Typography;
@@ -32,23 +35,61 @@ const ProfileView: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [avatarSelectorVisible, setAvatarSelectorVisible] = useState(false);
+  const [selectedAvatar, setSelectedAvatar] = useState<string>('');
   const [form] = Form.useForm();
 
   // Определяем какой профиль показываем
   const isOwnProfile = !viewingUserId || viewingUserId === currentUser?.id;
   const user = isOwnProfile ? currentUser : viewingUser;
+  
+  console.log('ProfileView render:', { 
+    isOwnProfile, 
+    viewingUserId, 
+    currentUserId: currentUser?.id, 
+    hasViewingUser: !!viewingUser,
+    userName: user?.username || 'no user'
+  });
 
+  // Очищаем состояние при смене пользователя
+  useEffect(() => {
+    console.log('ProfileView: viewingUserId changed to', viewingUserId);
+    // Очищаем старые данные ПРИ ЛЮБОМ изменении viewingUserId
+    setViewingUser(null);
+    setLoading(false);
+    setPermissionsLoaded(false);
+    setRoles([]);
+    setPermissions([]);
+  }, [viewingUserId]);
+  
   // Загрузка данных при монтировании и изменении пользователя
   useEffect(() => {
     if (!currentUser) return;
     
+    console.log('ProfileView: Starting data load for user', viewingUserId || 'self');
     loadInitialData();
   }, [viewingUserId, currentUser?.id]);
+
+  // Подписываемся на WebSocket обновления пользователей
+  useEffect(() => {
+    const handleUserUpdated = (updatedUser: User) => {
+      // Обновляем текущий просматриваемый профиль
+      if (viewingUserId && updatedUser.id === viewingUserId) {
+        setViewingUser(updatedUser);
+      }
+    };
+    
+    socketService.onUserUpdated(handleUserUpdated);
+    
+    return () => {
+      socketService.socket?.off('user-updated', handleUserUpdated);
+    };
+  }, [viewingUserId]);
 
   const loadInitialData = async () => {
     if (!currentUser) return;
     
-    // Загружаем профиль другого пользователя если нужно
+    // Грузим чужой профиль только если нужно
     if (viewingUserId && viewingUserId !== currentUser.id) {
       await loadUserProfile(viewingUserId);
     }
@@ -63,8 +104,14 @@ const ProfileView: React.FC = () => {
 
   const loadUserProfile = async (userId: string) => {
     setLoading(true);
+    // Сначала очищаем старые данные
+    setViewingUser(null);
+    
     try {
+      console.log(`ProfileView: Fetching user ${userId} from database`);
+      // ВСЕГДА запрашиваем свежие данные с сервера
       const { user: userData } = await apiService.getUser(userId);
+      console.log(`ProfileView: Loaded fresh data for ${userData.username}`);
       setViewingUser(userData);
     } catch (error) {
       console.error('Error loading user profile:', error);
@@ -156,6 +203,7 @@ const ProfileView: React.FC = () => {
       lastName: user.lastName ?? '',
       bio: user.bio ?? '',
     });
+    setSelectedAvatar(user.avatar || '');
     setIsEditing(true);
   };
 
@@ -164,17 +212,20 @@ const ProfileView: React.FC = () => {
     
     try {
       const values = await form.validateFields();
-      const { user: updatedUser } = await apiService.updateUser(user.id, values);
+      const updateData = { ...values };
+      if (selectedAvatar !== user.avatar) {
+        updateData.avatar = selectedAvatar;
+      }
+      const { user: updatedUser } = await apiService.updateUser(user.id, updateData);
       
       message.success('Профиль обновлен');
       setIsEditing(false);
       
-      // Обновляем состояние
+      // Обновляем состояние и в AuthContext, и локально
       if (isOwnProfile) {
         updateUser(updatedUser);
-      } else {
-        setViewingUser(updatedUser);
       }
+      setViewingUser(updatedUser);
     } catch (error) {
       console.error('Error updating profile:', error);
       message.error('Ошибка при обновлении профиля');
@@ -183,7 +234,12 @@ const ProfileView: React.FC = () => {
 
   const handleCancel = () => {
     setIsEditing(false);
+    setSelectedAvatar(user?.avatar || '');
     form.resetFields();
+  };
+
+  const handleAvatarSelect = (avatarConfig: string) => {
+    setSelectedAvatar(avatarConfig);
   };
 
   const handleRoleChange = async (newRole: string) => {
@@ -380,9 +436,12 @@ const ProfileView: React.FC = () => {
           <Text>{user.bio || 'Не указано'}</Text>
         </div>
         <div style={{ marginBottom: '16px' }}>
-          <Text strong>Имя пользователя:</Text>
-          <br />
-          <Text>{user.username}</Text>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text strong>Имя в Телеграм:</Text>
+            <a href={`https://t.me/${user.username}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+              <Text type="secondary">@{user.username}</Text>
+            </a>
+          </div>
         </div>
         <div style={{ marginBottom: '16px' }}>
           <Space direction="vertical" size="small" style={{ width: '100%' }}>
@@ -412,13 +471,17 @@ const ProfileView: React.FC = () => {
   if (loading || roles.length === 0 || !permissionsLoaded) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-      <Spin size="large" />
-    </div>
+        <Spin size="large" />
+      </div>
     );
   }
 
   if (!user) {
-    return null;
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+        <div>Профиль не найден</div>
+      </div>
+    );
   }
 
   return (
@@ -430,7 +493,43 @@ const ProfileView: React.FC = () => {
       <Card size="small" style={{ maxWidth: '400px', margin: '0 auto' }}>
         {/* Заголовок с аватаром и именем */}
         <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-          <Avatar size={60} icon={<UserOutlined />} />
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            {(selectedAvatar || user.avatar) ? (
+              <div
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#f5f5f5',
+                  border: '2px solid #d9d9d9'
+                }}
+                dangerouslySetInnerHTML={{ __html: generateAvatarFromConfig(selectedAvatar || user.avatar || '') }}
+              />
+            ) : (
+              <Avatar size={60} icon={<UserOutlined />} />
+            )}
+            
+            {isEditing && isOwnProfile && (
+              <Button
+                type="primary"
+                shape="circle"
+                size="small"
+                icon={<CameraOutlined />}
+                onClick={() => setAvatarSelectorVisible(true)}
+                style={{
+                  position: 'absolute',
+                  bottom: -5,
+                  right: -5,
+                  zIndex: 1
+                }}
+              />
+            )}
+          </div>
+          
           <Title level={4} style={{ marginTop: '8px', marginBottom: '4px' }}>
             {getDisplayName(user)}
           </Title>
@@ -449,6 +548,13 @@ const ProfileView: React.FC = () => {
         {/* Содержимое профиля */}
         {renderProfileContent()}
       </Card>
+      
+      <AvatarSelector
+        visible={avatarSelectorVisible}
+        onClose={() => setAvatarSelectorVisible(false)}
+        onSelect={handleAvatarSelect}
+        userId={user.id}
+      />
     </div>
   );
 };
