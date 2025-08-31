@@ -374,7 +374,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         
         setMessagesForChannel(channelId, channelMessages);
         setUsers(prev => {
-          const updated = { ...prev, ...channelUsers };
+          const updated = { ...prev, ...channelUsers as Record<string, User> };
           saveUsersToCache(updated);
           return updated;
         });

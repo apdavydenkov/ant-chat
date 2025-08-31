@@ -163,7 +163,7 @@ class ApiService {
   }
 
   async updateUserRole(userId: string, role: string): Promise<{ user: User }> {
-    const response = await this.request(`/auth/user/${userId}/role`, {
+    const response = await this.request<{ user: User }>(`/auth/user/${userId}/role`, {
       method: 'PUT',
       body: JSON.stringify({ role }),
     });

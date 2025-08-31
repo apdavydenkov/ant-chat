@@ -76,13 +76,20 @@ const ProfileView: React.FC = () => {
       // Обновляем текущий просматриваемый профиль
       if (viewingUserId && updatedUser.id === viewingUserId) {
         setViewingUser(updatedUser);
+        // Обновляем кэш профилей
+        try {
+          const cached = localStorage.getItem('profiles_cache');
+          const data = cached ? JSON.parse(cached) : {};
+          data[updatedUser.id] = updatedUser;
+          localStorage.setItem('profiles_cache', JSON.stringify(data));
+        } catch {}
       }
     };
     
     socketService.onUserUpdated(handleUserUpdated);
     
     return () => {
-      socketService.socket?.off('user-updated', handleUserUpdated);
+      socketService.removeAllListeners();
     };
   }, [viewingUserId]);
 
@@ -103,16 +110,36 @@ const ProfileView: React.FC = () => {
   };
 
   const loadUserProfile = async (userId: string) => {
+    // Проверяем кэш
+    try {
+      const cached = localStorage.getItem('profiles_cache');
+      if (cached) {
+        const data = JSON.parse(cached);
+        if (data[userId]) {
+          console.log(`ProfileView: Loading ${data[userId].username} from cache`);
+          setViewingUser(data[userId]);
+          return;
+        }
+      }
+    } catch {}
+
     setLoading(true);
-    // Сначала очищаем старые данные
     setViewingUser(null);
     
     try {
       console.log(`ProfileView: Fetching user ${userId} from database`);
-      // ВСЕГДА запрашиваем свежие данные с сервера
       const { user: userData } = await apiService.getUser(userId);
       console.log(`ProfileView: Loaded fresh data for ${userData.username}`);
       setViewingUser(userData);
+      
+      // Сохраняем в кэш
+      try {
+        const cached = localStorage.getItem('profiles_cache');
+        const data = cached ? JSON.parse(cached) : {};
+        data[userId] = userData;
+        localStorage.setItem('profiles_cache', JSON.stringify(data));
+      } catch {}
+      
     } catch (error) {
       console.error('Error loading user profile:', error);
       message.error('Не удалось загрузить профиль пользователя');
@@ -122,9 +149,25 @@ const ProfileView: React.FC = () => {
   };
 
   const loadRoles = async () => {
+    // Проверяем кэш ролей
     try {
+      const cached = localStorage.getItem('roles_cache');
+      if (cached) {
+        const data = JSON.parse(cached);
+        console.log('ProfileView: Loading roles from cache');
+        setRoles(data);
+        return;
+      }
+    } catch {}
+
+    try {
+      console.log('ProfileView: Fetching roles from database');
       const { roles: rolesData } = await apiService.getRoles();
       setRoles(rolesData);
+      // Сохраняем в кэш
+      try {
+        localStorage.setItem('roles_cache', JSON.stringify(rolesData));
+      } catch {}
     } catch (error) {
       console.error('Error loading roles:', error);
       setRoles([]);
@@ -132,9 +175,25 @@ const ProfileView: React.FC = () => {
   };
 
   const loadPermissions = async () => {
+    // Проверяем кэш разрешений
     try {
+      const cached = localStorage.getItem('permissions_cache');
+      if (cached) {
+        const data = JSON.parse(cached);
+        console.log('ProfileView: Loading permissions from cache');
+        setPermissions(data);
+        return;
+      }
+    } catch {}
+
+    try {
+      console.log('ProfileView: Fetching permissions from database');
       const { permissions: permissionsData } = await apiService.getAllPermissions();
       setPermissions(permissionsData);
+      // Сохраняем в кэш
+      try {
+        localStorage.setItem('permissions_cache', JSON.stringify(permissionsData));
+      } catch {}
     } catch (error) {
       console.error('Error loading permissions:', error);
       setPermissions([]);
@@ -226,6 +285,13 @@ const ProfileView: React.FC = () => {
         updateUser(updatedUser);
       }
       setViewingUser(updatedUser);
+      // Обновляем кэш профилей
+      try {
+        const cached = localStorage.getItem('profiles_cache');
+        const data = cached ? JSON.parse(cached) : {};
+        data[updatedUser.id] = updatedUser;
+        localStorage.setItem('profiles_cache', JSON.stringify(data));
+      } catch {}
     } catch (error) {
       console.error('Error updating profile:', error);
       message.error('Ошибка при обновлении профиля');

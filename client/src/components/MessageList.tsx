@@ -22,7 +22,7 @@ interface MessageItemProps {
   canPinMessage: boolean;
 }
 
-const MessageItem = React.memo(({ message, users, userId, onDelete, onPinToggle, onUsernameClick, onCopy, canDeleteMessage, canPinMessage }: MessageItemProps) => {
+const MessageItem = ({ message, users, userId, onDelete, onPinToggle, onUsernameClick, onCopy, canDeleteMessage, canPinMessage }: MessageItemProps) => {
   const isOwner = userId === message.createdBy;
   const isSystem = message.createdBy === 'system';
   const displayName = users[message.createdBy] 
@@ -142,7 +142,7 @@ const MessageItem = React.memo(({ message, users, userId, onDelete, onPinToggle,
       </div>
     </Dropdown>
   );
-});
+};
 
 const MessageList: React.FC = () => {
   const { messages, users, activeChannelId, deleteMessage, pinMessage, unpinMessage, showLoginModal } = useChat();
