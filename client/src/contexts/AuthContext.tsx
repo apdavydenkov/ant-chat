@@ -47,6 +47,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
+  // WebSocket обработчик для обновления текущего пользователя
+  useEffect(() => {
+    const handleUserUpdated = (updatedUser: User) => {
+      if (user && updatedUser.id === user.id) {
+        console.log('AuthContext: Updating current user via WebSocket', updatedUser.username);
+        setUser(updatedUser);
+      }
+    };
+    
+    if (user) {
+      socketService.onUserUpdated(handleUserUpdated);
+    }
+  }, [user]);
+
   const telegramLogin = async (telegramData: any) => {
     try {
       const { user: serverUser, token } = await apiService.telegramLogin(telegramData);

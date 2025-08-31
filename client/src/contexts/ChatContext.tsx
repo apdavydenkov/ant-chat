@@ -189,14 +189,24 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     });
 
     socketService.onUserUpdated((updatedUser) => {
+      console.log('ChatContext: User updated via WebSocket', updatedUser.username);
+      
       // Обновляем пользователя в кэше сообщений
       setUsers(prev => {
         const updated = { ...prev, [updatedUser.id]: updatedUser };
         saveUsersToCache(updated);
         return updated;
       });
+      
+      // Обновляем кэш профилей
+      try {
+        const cached = localStorage.getItem('profiles_cache');
+        const data = cached ? JSON.parse(cached) : {};
+        data[updatedUser.id] = updatedUser;
+        localStorage.setItem('profiles_cache', JSON.stringify(data));
+      } catch {}
     });
-  }, [activeChannelId]);
+  }, []);
 
   const createChannel = useCallback(async (name: string, description?: string) => {
     try {
