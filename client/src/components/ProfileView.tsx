@@ -73,25 +73,34 @@ const ProfileView: React.FC = () => {
   // Подписываемся на WebSocket обновления пользователей
   useEffect(() => {
     const handleUserUpdated = (updatedUser: User) => {
+      console.log('ProfileView: User updated via WebSocket', updatedUser.username);
+      
+      // Обновляем кэш профилей
+      try {
+        const cached = localStorage.getItem('profiles_cache');
+        const data = cached ? JSON.parse(cached) : {};
+        data[updatedUser.id] = updatedUser;
+        localStorage.setItem('profiles_cache', JSON.stringify(data));
+      } catch {}
+      
       // Обновляем текущий просматриваемый профиль
       if (viewingUserId && updatedUser.id === viewingUserId) {
         setViewingUser(updatedUser);
-        // Обновляем кэш профилей
-        try {
-          const cached = localStorage.getItem('profiles_cache');
-          const data = cached ? JSON.parse(cached) : {};
-          data[updatedUser.id] = updatedUser;
-          localStorage.setItem('profiles_cache', JSON.stringify(data));
-        } catch {}
+      }
+      
+      // Обновляем свой профиль в AuthContext
+      if (currentUser && updatedUser.id === currentUser.id) {
+        updateUser(updatedUser);
       }
     };
     
     socketService.onUserUpdated(handleUserUpdated);
     
     return () => {
-      socketService.removeAllListeners();
+      // НЕ очищаем все обработчики - это сломает чат
+      // Обработчики очистятся автоматически при размонтировании
     };
-  }, [viewingUserId]);
+  }, [viewingUserId, currentUser?.id, updateUser]);
 
   const loadInitialData = async () => {
     if (!currentUser) return;
